@@ -65,17 +65,20 @@ interface TypeConfig {
 }
 
 const KNOWN_TYPES: Record<string, TypeConfig> = {
-  hospital:         { label: "病院",     badge: "bg-blue-100 text-blue-800",    dot: "#2563eb" },
-  pharmacy:         { label: "薬局",     badge: "bg-green-100 text-green-800",  dot: "#16a34a" },
-  gym:              { label: "体育館",   badge: "bg-orange-100 text-orange-800",dot: "#ea580c" },
-  school:           { label: "学校",     badge: "bg-purple-100 text-purple-800",dot: "#7c3aed" },
-  community_center: { label: "公民館",   badge: "bg-teal-100 text-teal-800",    dot: "#0891b2" },
-  park:             { label: "公園",     badge: "bg-lime-100 text-lime-700",    dot: "#65a30d" },
-  shelter:          { label: "避難所",   badge: "bg-red-100 text-red-800",      dot: "#dc2626" },
-  hotel:            { label: "ホテル",   badge: "bg-pink-100 text-pink-800",    dot: "#db2777" },
-  restaurant:       { label: "飲食店",   badge: "bg-amber-100 text-amber-800",  dot: "#d97706" },
-  convenience:      { label: "コンビニ", badge: "bg-yellow-100 text-yellow-800",dot: "#ca8a04" },
-  station:          { label: "駅",       badge: "bg-indigo-100 text-indigo-800",dot: "#4f46e5" },
+  hospital:         { label: "病院",           badge: "bg-blue-100 text-blue-800",    dot: "#2563eb" },
+  pharmacy:         { label: "薬局",           badge: "bg-green-100 text-green-800",  dot: "#16a34a" },
+  visiting_nurse:   { label: "訪問看護",       badge: "bg-sky-100 text-sky-800",      dot: "#0284c7" },
+  care_manager:     { label: "居宅介護支援",   badge: "bg-cyan-100 text-cyan-800",    dot: "#0891b2" },
+  nursing_home:     { label: "介護施設",       badge: "bg-blue-100 text-blue-700",    dot: "#1d4ed8" },
+  gym:              { label: "体育館",         badge: "bg-orange-100 text-orange-800",dot: "#ea580c" },
+  school:           { label: "学校",           badge: "bg-purple-100 text-purple-800",dot: "#7c3aed" },
+  community_center: { label: "公民館",         badge: "bg-teal-100 text-teal-800",    dot: "#0d9488" },
+  park:             { label: "公園",           badge: "bg-lime-100 text-lime-700",    dot: "#65a30d" },
+  shelter:          { label: "避難所",         badge: "bg-red-100 text-red-800",      dot: "#dc2626" },
+  hotel:            { label: "ホテル",         badge: "bg-pink-100 text-pink-800",    dot: "#db2777" },
+  restaurant:       { label: "飲食店",         badge: "bg-amber-100 text-amber-800",  dot: "#d97706" },
+  convenience:      { label: "コンビニ",       badge: "bg-yellow-100 text-yellow-800",dot: "#ca8a04" },
+  station:          { label: "駅",             badge: "bg-indigo-100 text-indigo-800",dot: "#4f46e5" },
 };
 
 export function getFacilityTypeConfig(type: FacilityType): TypeConfig {

@@ -63,6 +63,9 @@ function normalizeType(value: unknown): FacilityType {
   // 日本語の場合も既知タイプへマップ
   const lower = raw.toLowerCase();
   if (lower.includes("pharmacy") || lower.includes("薬") || lower.includes("調剤")) return "pharmacy";
+  if (lower.includes("visiting_nurse") || lower.includes("訪問看護") || lower.includes("訪問介護")) return "visiting_nurse";
+  if (lower.includes("care_manager") || lower.includes("居宅介護支援") || lower.includes("ケアマネ")) return "care_manager";
+  if (lower.includes("nursing_home") || lower.includes("特養") || lower.includes("老健") || lower.includes("グループホーム") || lower.includes("デイサービス")) return "nursing_home";
   if (lower.includes("hospital") || lower.includes("clinic") || lower.includes("病院") || lower.includes("クリニック") || lower.includes("診療所")) return "hospital";
   // それ以外は Gemini が返した文字列をそのまま使う（汎用化）
   return raw;

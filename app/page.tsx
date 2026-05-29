@@ -296,6 +296,7 @@ export default function HomePage() {
             <div className="mt-4">
               <ManualFacilityAdder
                 facilities={manualFacilities}
+                gpsLocation={gpsLocation}
                 regionHint={
                   homeLocation
                     ? `${homeLocation.prefectureName}${homeLocation.municipalityName}`
@@ -312,28 +313,10 @@ export default function HomePage() {
               <h2 className="mb-3 text-base font-semibold text-slate-700">
                 距離レーダー
               </h2>
-              <div className="grid grid-cols-2 gap-3">
+              {/* スマホ: 縦積み（現在地→お住まい）/ PC: 横並び */}
+              <div className="flex flex-col gap-4 sm:grid sm:grid-cols-2 sm:gap-3">
 
-                {/* 左: お住まいエリア基準 */}
-                <div className="flex flex-col gap-2">
-                  <p className="text-center text-xs font-semibold text-sky-700">
-                    お住まいエリア基準
-                  </p>
-                  <RadarChart
-                    homeLocation={homeLocation}
-                    facilities={homeFacilities}
-                    maxDistanceKm={maxDist(homeFacilities)}
-                  />
-                  {homeFacilities[0] && (
-                    <p className="rounded-xl bg-sky-50 px-3 py-2 text-center text-xs text-sky-800">
-                      最寄り: <span className="font-semibold">{homeFacilities[0].name}</span>
-                      <br />
-                      {homeFacilities[0].distanceKm.toFixed(1)} km
-                    </p>
-                  )}
-                </div>
-
-                {/* 右: 現在地基準 */}
+                {/* 上/左: 現在地基準（先に表示） */}
                 <div className="flex flex-col gap-2">
                   <p className="text-center text-xs font-semibold text-emerald-700">
                     現在地基準
@@ -379,6 +362,25 @@ export default function HomePage() {
                         </p>
                       )}
                     </div>
+                  )}
+                </div>
+
+                {/* 下/右: お住まいエリア基準 */}
+                <div className="flex flex-col gap-2">
+                  <p className="text-center text-xs font-semibold text-sky-700">
+                    お住まいエリア基準
+                  </p>
+                  <RadarChart
+                    homeLocation={homeLocation}
+                    facilities={homeFacilities}
+                    maxDistanceKm={maxDist(homeFacilities)}
+                  />
+                  {homeFacilities[0] && (
+                    <p className="rounded-xl bg-sky-50 px-3 py-2 text-center text-xs text-sky-800">
+                      最寄り: <span className="font-semibold">{homeFacilities[0].name}</span>
+                      <br />
+                      {homeFacilities[0].distanceKm.toFixed(1)} km
+                    </p>
                   )}
                 </div>
 

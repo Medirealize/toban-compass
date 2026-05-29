@@ -1,11 +1,13 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
-import type { Facility } from "@/lib/types";
+import { useCallback, useMemo, useRef, useState } from "react";
+import type { Facility, HomeLocation } from "@/lib/types";
 import { getFacilityTypeConfig } from "@/lib/types";
+import { haversineDistanceKm } from "@/lib/geo";
 
 interface ManualFacilityAdderProps {
   facilities: Facility[];
+  gpsLocation?: HomeLocation | null;
   regionHint?: string;
   onAdd: (facility: Facility) => void;
   onRemove: (id: string) => void;
@@ -25,6 +27,7 @@ async function resolvePlace(text: string, regionHint?: string) {
 
 export function ManualFacilityAdder({
   facilities,
+  gpsLocation,
   regionHint,
   onAdd,
   onRemove,
@@ -35,6 +38,17 @@ export function ManualFacilityAdder({
   const [error, setError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const composingRef = useRef(false);
+
+  // 現在地からの距離でソート
+  const sortedFacilities = useMemo(() => {
+    if (!gpsLocation) return facilities;
+    return [...facilities]
+      .map((f) => ({
+        ...f,
+        _dist: haversineDistanceKm(gpsLocation.lat, gpsLocation.lng, f.lat, f.lng),
+      }))
+      .sort((a, b) => a._dist - b._dist);
+  }, [facilities, gpsLocation]);
 
   // テキスト一括貼り付け
   const [bulkText, setBulkText] = useState("");
@@ -251,7 +265,12 @@ export function ManualFacilityAdder({
       {/* 追加済みリスト */}
       {facilities.length > 0 && (
         <ul className="mt-3 space-y-2">
-          {facilities.map((f) => (
+          {gpsLocation && (
+            <p className="mb-1 text-xs text-emerald-700">
+              現在地から近い順
+            </p>
+          )}
+          {sortedFacilities.map((f) => (
             <li key={f.id} className="rounded-xl bg-slate-50 px-3 py-2">
               {editingId === f.id ? (
                 /* ── 編集モード ── */
@@ -322,6 +341,11 @@ export function ManualFacilityAdder({
                     </p>
                     <p className="truncate text-xs text-slate-400">{f.address}</p>
                   </div>
+                  {gpsLocation && (
+                    <span className="shrink-0 text-sm font-semibold text-emerald-700">
+                      {haversineDistanceKm(gpsLocation.lat, gpsLocation.lng, f.lat, f.lng).toFixed(1)} km
+                    </span>
+                  )}
                   <button
                     type="button"
                     onClick={() => startEdit(f)}

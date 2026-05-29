@@ -46,13 +46,10 @@ export function formatDistanceKm(km: number): string {
 
 export function buildGoogleMapsDirectionsUrl(
   destLat: number,
-  destLng: number,
-  originAddress?: string
+  destLng: number
 ): string {
-  // destination = coordinates (unambiguous pin); origin = address text (human-readable)
-  if (originAddress) {
-    return `https://www.google.com/maps/dir/${encodeURIComponent(originAddress)}/${destLat},${destLng}/`;
-  }
+  // Origin is intentionally omitted — the app user is physically at the patient's home,
+  // so Google Maps current location is the correct starting point.
   return `https://www.google.com/maps/dir/?api=1&destination=${destLat},${destLng}`;
 }
 

@@ -185,7 +185,7 @@ export default function HomePage() {
               <h2 className="mb-2 text-base font-semibold text-slate-700">
                 距離が近い順
               </h2>
-              <FacilityList facilities={sortedFacilities} homeLocation={homeLocation} />
+              <FacilityList facilities={sortedFacilities} />
             </section>
           </>
         )}

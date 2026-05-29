@@ -215,9 +215,11 @@ export default function HomePage() {
         <div className="flex items-center justify-between">
           <div className="w-12" />
           <div className="text-center">
-            <h1 className="text-xl font-bold text-slate-900">どこ近？</h1>
+            <h1 className="text-2xl font-bold tracking-tight text-slate-900">
+              どこ近？
+            </h1>
             <p className="text-xs text-slate-500">
-              候補地を比べて、一番近いところを見つけよう
+              近い場所を、距離レーダーで比べよう
             </p>
           </div>
           <a

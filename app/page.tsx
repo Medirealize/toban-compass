@@ -15,6 +15,7 @@ import { RadarChart } from "@/components/RadarChart";
 import { FacilityList } from "@/components/FacilityList";
 import { ScheduleUploader } from "@/components/ScheduleUploader";
 import type { ParseResult } from "@/components/ScheduleUploader";
+import { ManualFacilityAdder } from "@/components/ManualFacilityAdder";
 
 function enrichFacilities(
   facilities: Facility[],
@@ -56,6 +57,7 @@ export default function HomePage() {
       townId: "",
     });
   const [facilities, setFacilities] = useState<Facility[]>(SAMPLE_FACILITIES);
+  const [manualFacilities, setManualFacilities] = useState<Facility[]>([]);
   const [isParsing, setIsParsing] = useState(false);
   const [parseResult, setParseResult] = useState<ParseResult | null>(null);
 
@@ -97,23 +99,37 @@ export default function HomePage() {
     );
   }, []);
 
+  // スケジュール + 手動のマージ
+  const allFacilities = useMemo(
+    () => [...facilities, ...manualFacilities],
+    [facilities, manualFacilities]
+  );
+
   // お住まいエリア基準
   const homeFacilities = useMemo(
     () =>
       homeLocation
-        ? enrichFacilities(facilities, homeLocation.lat, homeLocation.lng)
+        ? enrichFacilities(allFacilities, homeLocation.lat, homeLocation.lng)
         : [],
-    [facilities, homeLocation]
+    [allFacilities, homeLocation]
   );
 
   // 現在地基準
   const gpsFacilities = useMemo(
     () =>
       gpsLocation
-        ? enrichFacilities(facilities, gpsLocation.lat, gpsLocation.lng)
+        ? enrichFacilities(allFacilities, gpsLocation.lat, gpsLocation.lng)
         : [],
-    [facilities, gpsLocation]
+    [allFacilities, gpsLocation]
   );
+
+  const handleManualAdd = useCallback((facility: Facility) => {
+    setManualFacilities((prev) => [...prev, facility]);
+  }, []);
+
+  const handleManualRemove = useCallback((id: string) => {
+    setManualFacilities((prev) => prev.filter((f) => f.id !== id));
+  }, []);
 
   const handleLocationChange = useCallback(
     (selection: HomeLocationSelection, location: HomeLocation) => {
@@ -209,6 +225,14 @@ export default function HomePage() {
                 onFile={handleParseFile}
                 isParsing={isParsing}
                 parseResult={parseResult}
+              />
+            </div>
+
+            <div className="mt-4">
+              <ManualFacilityAdder
+                facilities={manualFacilities}
+                onAdd={handleManualAdd}
+                onRemove={handleManualRemove}
               />
             </div>
 

@@ -135,6 +135,46 @@ async function requestWithModelFallback<T>(
   throw lastError ?? new Error("Gemini API failed");
 }
 
+export async function resolvePlaceWithGemini(text: string): Promise<{
+  name: string;
+  address: string;
+  type: "hospital" | "pharmacy";
+  lat: number;
+  lng: number;
+}> {
+  const raw = await requestWithModelFallback<{
+    name: string;
+    address: string;
+    type: string;
+    lat: number;
+    lng: number;
+  }>(
+    [
+      "入力されたテキストから施設・場所の情報を抽出し、日本国内の座標を返してください。",
+      "type は hospital（病院・クリニック・診療所）または pharmacy（薬局・調剤薬局）。",
+      "医療施設でない場合も hospital として扱ってください。",
+      "address は都道府県から始まる完全な住所にしてください。",
+      "lat/lng は実在する日本国内の座標（緯度24〜46、経度122〜154）で、0は禁止。",
+      `入力: ${text}`,
+    ].join("\n"),
+    {
+      type: "OBJECT",
+      required: ["name", "address", "type", "lat", "lng"],
+      properties: {
+        name: { type: "STRING" },
+        address: { type: "STRING" },
+        type: { type: "STRING" },
+        lat: { type: "NUMBER" },
+        lng: { type: "NUMBER" },
+      },
+    }
+  );
+  return {
+    ...raw,
+    type: raw.type === "pharmacy" ? "pharmacy" : "hospital",
+  };
+}
+
 export async function parseHomeAddressWithGemini(rawAddress: string) {
   return requestWithModelFallback<{
     prefectureName: string;

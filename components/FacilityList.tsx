@@ -59,6 +59,11 @@ export function FacilityList({
                   <span className="text-sm font-medium text-sky-700">
                     {formatDistanceKm(f.distanceKm)}
                   </span>
+                  {f.id.startsWith("manual-") && (
+                    <span className="inline-flex items-center rounded-full bg-violet-100 px-2 py-0.5 text-xs font-semibold text-violet-700">
+                      手動追加
+                    </span>
+                  )}
                 </div>
                 <h3 className="text-lg font-bold leading-snug text-slate-900">
                   {f.name}

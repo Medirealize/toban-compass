@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 import type { FacilityWithDistance, HomeLocation } from "@/lib/types";
-import { formatHomeLocationShort } from "@/lib/types";
+import { formatHomeLocationShort, getFacilityTypeConfig } from "@/lib/types";
 import { bearingDeg, haversineDistanceKm } from "@/lib/geo";
 import { polarToCartesian } from "@/lib/geo";
 
@@ -88,9 +88,13 @@ export function FacilityRadarModal({
         <div className="mb-4 flex items-start justify-between gap-2">
           <div>
             <p className="text-xs text-slate-400">おおよその位置</p>
-            <h3 className="text-lg font-bold leading-snug text-slate-900">
-              {facility.name}
-            </h3>
+            <div className="flex items-center gap-2">
+              <h3 className="text-lg font-bold leading-snug text-slate-900">{facility.name}</h3>
+              {(() => {
+                const { label, badge } = getFacilityTypeConfig(facility.type);
+                return <span className={`inline-flex h-5 shrink-0 items-center rounded-full px-2 text-[10px] font-semibold ${badge}`}>{label}</span>;
+              })()}
+            </div>
             <p className="mt-0.5 text-xs text-slate-500">{facility.address}</p>
           </div>
           <button

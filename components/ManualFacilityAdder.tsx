@@ -2,6 +2,7 @@
 
 import { useCallback, useRef, useState } from "react";
 import type { Facility } from "@/lib/types";
+import { getFacilityTypeConfig } from "@/lib/types";
 
 interface ManualFacilityAdderProps {
   facilities: Facility[];
@@ -224,15 +225,14 @@ export function ManualFacilityAdder({
               ) : (
                 /* ── 表示モード ── */
                 <div className="flex items-start gap-2">
-                  <span
-                    className={`mt-0.5 inline-flex h-5 shrink-0 items-center rounded-full px-2 text-[10px] font-semibold ${
-                      f.type === "pharmacy"
-                        ? "bg-green-100 text-green-700"
-                        : "bg-blue-100 text-blue-700"
-                    }`}
-                  >
-                    {f.type === "pharmacy" ? "薬局" : "病院"}
-                  </span>
+                  {(() => {
+                    const { label, badge } = getFacilityTypeConfig(f.type);
+                    return (
+                      <span className={`mt-0.5 inline-flex h-5 shrink-0 items-center rounded-full px-2 text-[10px] font-semibold ${badge}`}>
+                        {label}
+                      </span>
+                    );
+                  })()}
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-medium text-slate-800">
                       {f.name}

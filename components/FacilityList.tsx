@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import type { FacilityWithDistance, HomeLocation } from "@/lib/types";
+import { getFacilityTypeConfig } from "@/lib/types";
 import { buildGoogleMapsDirectionsUrl, formatDistanceKm } from "@/lib/geo";
 import { FacilityRadarModal } from "@/components/FacilityRadarModal";
 
@@ -11,17 +12,11 @@ interface FacilityListProps {
   gpsLocation: HomeLocation | null;
 }
 
-function TypeBadge({ type }: { type: FacilityWithDistance["type"] }) {
-  const isHospital = type === "hospital";
+function TypeBadge({ type }: { type: string }) {
+  const { label, badge } = getFacilityTypeConfig(type);
   return (
-    <span
-      className={`inline-flex min-h-[28px] shrink-0 items-center rounded-full px-3 py-1 text-sm font-semibold ${
-        isHospital
-          ? "bg-blue-100 text-blue-800"
-          : "bg-green-100 text-green-800"
-      }`}
-    >
-      {isHospital ? "病院" : "薬局"}
+    <span className={`inline-flex min-h-[28px] shrink-0 items-center rounded-full px-3 py-1 text-sm font-semibold ${badge}`}>
+      {label}
     </span>
   );
 }

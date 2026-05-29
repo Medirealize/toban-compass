@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import type { Facility, HomeLocation } from "@/lib/types";
+import { getFacilityTypeConfig } from "@/lib/types";
 import { haversineDistanceKm } from "@/lib/geo";
 
 interface ParsedFacilityManagerProps {
@@ -74,15 +75,14 @@ export function ParsedFacilityManager({
               : null;
             return (
               <li key={f.id} className="flex items-center gap-2 px-4 py-2.5">
-                <span
-                  className={`inline-flex h-5 shrink-0 items-center rounded-full px-2 text-[10px] font-semibold ${
-                    f.type === "pharmacy"
-                      ? "bg-green-100 text-green-700"
-                      : "bg-blue-100 text-blue-700"
-                  }`}
-                >
-                  {f.type === "pharmacy" ? "薬局" : "病院"}
-                </span>
+                {(() => {
+                  const { label, badge } = getFacilityTypeConfig(f.type);
+                  return (
+                    <span className={`inline-flex h-5 shrink-0 items-center rounded-full px-2 text-[10px] font-semibold ${badge}`}>
+                      {label}
+                    </span>
+                  );
+                })()}
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-medium text-slate-800">
                     {f.name}

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { HomeLocation, FacilityWithDistance } from "@/lib/types";
-import { formatHomeLocationLabel, formatHomeLocationShort } from "@/lib/types";
+import { formatHomeLocationLabel, formatHomeLocationShort, getFacilityTypeConfig } from "@/lib/types";
 import { polarToCartesian } from "@/lib/geo";
 
 const SIZE = 320;
@@ -336,7 +336,7 @@ export function RadarChart({ homeLocation, facilities, maxDistanceKm }: RadarCha
           {facilities.map((f) => {
             const raw = rawPositions.find((p) => p.id === f.id)!;
             const disp = displayPositions.get(f.id)!;
-            const color = f.type === "hospital" ? "#2563eb" : "#16a34a";
+            const color = getFacilityTypeConfig(f.type).dot;
             const isActive = activeId === f.id;
             const moved = Math.hypot(disp.x - raw.x, disp.y - raw.y) > 3;
             return (
@@ -371,14 +371,26 @@ export function RadarChart({ homeLocation, facilities, maxDistanceKm }: RadarCha
         )}
       </div>
 
-      <div className="mt-2 flex justify-center gap-4 text-xs text-slate-600">
-        <span className="flex items-center gap-1.5">
-          <span className="inline-block h-3 w-3 rounded-full bg-blue-600" />病院
-        </span>
-        <span className="flex items-center gap-1.5">
-          <span className="inline-block h-3 w-3 rounded-full bg-green-600" />薬局
-        </span>
-      </div>
+      {/* 凡例: 表示中の施設タイプのみ動的表示 */}
+      {facilities.length > 0 && (() => {
+        const seen = new Map<string, { label: string; dot: string }>();
+        for (const f of facilities) {
+          if (!seen.has(f.type)) {
+            const { label, dot } = getFacilityTypeConfig(f.type);
+            seen.set(f.type, { label, dot });
+          }
+        }
+        return (
+          <div className="mt-2 flex flex-wrap justify-center gap-x-4 gap-y-1 text-xs text-slate-600">
+            {[...seen.values()].map(({ label, dot }) => (
+              <span key={label} className="flex items-center gap-1.5">
+                <span className="inline-block h-3 w-3 rounded-full" style={{ backgroundColor: dot }} />
+                {label}
+              </span>
+            ))}
+          </div>
+        );
+      })()}
     </div>
   );
 }

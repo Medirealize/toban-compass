@@ -56,15 +56,16 @@ export async function geocodeAddressFallback(
 }
 
 function normalizeType(value: unknown): FacilityType {
-  const text = String(value ?? "").toLowerCase();
-  if (
-    text.includes("pharmacy") ||
-    text.includes("薬") ||
-    text.includes("調剤")
-  ) {
-    return "pharmacy";
-  }
-  return "hospital";
+  const raw = String(value ?? "").trim();
+  if (!raw) return "other";
+  // hospital / pharmacy はそのまま返す
+  if (raw === "hospital" || raw === "pharmacy") return raw;
+  // 日本語の場合も既知タイプへマップ
+  const lower = raw.toLowerCase();
+  if (lower.includes("pharmacy") || lower.includes("薬") || lower.includes("調剤")) return "pharmacy";
+  if (lower.includes("hospital") || lower.includes("clinic") || lower.includes("病院") || lower.includes("クリニック") || lower.includes("診療所")) return "hospital";
+  // それ以外は Gemini が返した文字列をそのまま使う（汎用化）
+  return raw;
 }
 
 function inferRegion(address: string, name: string): string {

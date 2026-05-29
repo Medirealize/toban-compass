@@ -45,34 +45,44 @@ const SCHEDULE_SCHEMA = {
 };
 
 const SCHEDULE_PROMPT = `
-あなたは日本の「休日・夜間当番表」読み取りの専門AIです。
-画像またはPDFに写っているすべての当番医・当番薬局を、1件も漏らさず抽出してください。
+あなたは日本の施設・場所の一覧表を読み取る専門AIです。
+画像またはPDFに写っているすべての施設・場所を、1件も漏らさず抽出してください。
 
 【読み取り方針】
 - 表・リスト・複数列・縦書き・斜め文字・低解像度すべて対応
-- かすれ・影・折り目で読みにくい文字は、前後の文脈と施設名の一般的なパターンから補完
-- 画像内のヘッダーや見出し（「○○市休日当番」等）から地域を特定し、住所補完に使う
+- かすれ・影・折り目で読みにくい文字は、前後の文脈から補完
+- 画像内のヘッダーや見出しから地域を特定し、住所補完に使う
 
-【施設の判定】
-- 病院・クリニック・診療所・医療センター・外科・内科 → type: "hospital"
-- 薬局・調剤薬局・ドラッグストア（調剤あり） → type: "pharmacy"
-- 電話番号のみの行・日付行・ヘッダー行・注釈行は除外
-- 同一施設の重複は1件に統合
+【施設タイプ（type フィールド）】
+以下のキーを使用し、最も近いものを選ぶこと:
+- "hospital"         : 病院・クリニック・診療所・医療センター
+- "pharmacy"         : 薬局・調剤薬局・ドラッグストア（調剤あり）
+- "gym"              : 体育館・スポーツセンター・武道館・プール
+- "school"           : 学校・大学・幼稚園・保育園・教育施設
+- "community_center" : 公民館・コミュニティセンター・集会所・文化会館
+- "park"             : 公園・グラウンド・広場・緑地
+- "shelter"          : 避難所・緊急避難場所
+- "hotel"            : ホテル・旅館・宿泊施設
+- "restaurant"       : 飲食店・レストラン・カフェ
+- "convenience"      : コンビニエンスストア
+- "station"          : 駅・バスターミナル
+- 上記に当てはまらない場合: 施設の種別を表す短い英単語または日本語を使う（例: "library", "museum", "temple"）
 
 【各フィールドの入力ルール】
 - name: 施設の正式名称。読めない文字は「□」で代替
-- address: 必ず「都道府県」から始める。省略されている場合はヘッダーの地域名から都道府県を補い「○○県○○市…」の形式にする
-- region: 市区町村名（ヘッダーや見出しから取得可）
-- hours: 記載の時間をそのまま記録。複数時間帯は「/」で結合。不明は「要確認」
+- address: 必ず「都道府県」から始める。省略はヘッダーの地域名から補完
+- region: 市区町村名
+- hours: 記載の時間をそのまま。複数時間帯は「/」で結合。不明は「要確認」
 - lat/lng: 施設の実際の位置を番地・丁目レベルで推定した日本国内の座標（緯度24〜46、経度123〜154）
   ★ 0は絶対禁止
-  ★ 市区町村の中心座標は禁止。同じ市内の施設でも必ず施設ごとに異なる座標を返すこと
-  ★ 住所の番地・丁目から実際の建物位置に近い座標を小数点6桁で推定すること
-  ★ 推定できない場合は施設名から検索した最も妥当な実在座標を使用すること
+  ★ 市区町村の中心座標は禁止。施設ごとに異なる座標を返すこと
+  ★ 推定できない場合は施設名から検索した最も妥当な実在座標を使用
 
 【厳守事項】
 - facilities は空配列禁止。1件でも読めたら必ず出力する
-- name と address は必ず別フィールドに格納（address に施設名を入れない）
+- name と address は必ず別フィールドに格納
+- 電話番号のみの行・日付行・ヘッダー行・注釈行は除外
+- 同一施設の重複は1件に統合
 `.trim();
 
 async function requestGeminiJson<T>(
@@ -143,7 +153,7 @@ export async function resolvePlaceWithGemini(
 ): Promise<{
   name: string;
   address: string;
-  type: "hospital" | "pharmacy";
+  type: string;
   lat: number;
   lng: number;
 }> {
@@ -164,7 +174,7 @@ export async function resolvePlaceWithGemini(
     "【出力ルール】",
     "- name: 実在する可能性が最も高い正式名称",
     "- address: 都道府県から始まる完全な住所",
-    "- type: hospital（病院・クリニック・診療所）または pharmacy（薬局）。医療以外も hospital",
+    "- type: 施設の種別を英単語で返す（hospital/pharmacy/gym/school/community_center/park/shelter/hotel/restaurant/station など。該当なければ短い英単語か日本語）",
     "- lat/lng: 実在する日本国内の座標（緯度24〜46、経度122〜154）。0は絶対禁止",
     "",
     `入力: ${text}`,
@@ -190,10 +200,8 @@ export async function resolvePlaceWithGemini(
       },
     }
   );
-  return {
-    ...raw,
-    type: raw.type === "pharmacy" ? "pharmacy" : "hospital",
-  };
+  // type は Gemini が返したものをそのまま使う（汎用化）
+  return { ...raw, type: raw.type || "other" };
 }
 
 export async function parseHomeAddressWithGemini(rawAddress: string) {

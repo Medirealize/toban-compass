@@ -7,6 +7,42 @@ import type { Municipality, Prefecture } from "./types";
 
 const DATA_DIR = path.join(process.cwd(), "public/data/locations");
 
+interface MunicipalityEntry {
+  lat: number;
+  lng: number;
+  name: string;
+  prefName: string;
+}
+
+// In-memory index of all municipalities across all prefectures (populated on first use)
+let allMunicipalitiesCache: MunicipalityEntry[] | null = null;
+
+async function getAllMunicipalities(): Promise<MunicipalityEntry[]> {
+  if (allMunicipalitiesCache) return allMunicipalitiesCache;
+  const prefectures = await loadPrefecturesFromDisk();
+  const entries: MunicipalityEntry[] = [];
+  for (const pref of prefectures) {
+    const municipalities = await loadMunicipalitiesFromDisk(pref.id);
+    for (const m of municipalities) {
+      entries.push({ lat: m.lat, lng: m.lng, name: m.name, prefName: pref.name });
+    }
+  }
+  // Longer names first so "宮崎市" matches before "崎市" etc.
+  allMunicipalitiesCache = entries.sort((a, b) => b.name.length - a.name.length);
+  return allMunicipalitiesCache;
+}
+
+/** 都道府県名なしでも市区町村名から座標を引く */
+export async function geocodeByMunicipalityName(
+  text: string
+): Promise<{ lat: number; lng: number } | null> {
+  const normalized = normalizeAddressText(text);
+  if (!normalized) return null;
+  const all = await getAllMunicipalities();
+  const match = all.find((m) => m.name.length >= 2 && normalized.includes(m.name));
+  return match ? { lat: match.lat, lng: match.lng } : null;
+}
+
 export interface ParsedAddressParts {
   prefectureName: string;
   municipalityName: string;

@@ -3,32 +3,56 @@ import {
   loadMunicipalitiesFromDisk,
   loadPrefecturesFromDisk,
   parseAddressLocally,
+  geocodeByMunicipalityName,
 } from "./parse-address";
 
 function isValidCoord(value: unknown): value is number {
-  return typeof value === "number" && Number.isFinite(value) && value !== 0;
+  return (
+    typeof value === "number" &&
+    Number.isFinite(value) &&
+    value !== 0 &&
+    Math.abs(value) > 0.001
+  );
 }
 
+/**
+ * 3段階フォールバックで座標を取得:
+ * 1. 都道府県 → 市区町村 を正規パースで解決
+ * 2. 都道府県なしでも全国市区町村名スキャン
+ * 3. region フィールドで再試行
+ */
 export async function geocodeAddressFallback(
-  address: string
+  address: string,
+  region?: string
 ): Promise<{ lat: number; lng: number } | null> {
+  // Step 1: 正規パス（都道府県 → 市区町村）
   const parsed = await parseAddressLocally(address);
-  if (!parsed) return null;
+  if (parsed) {
+    const prefectures = await loadPrefecturesFromDisk();
+    const pref = prefectures.find((p) => p.name === parsed.prefectureName);
+    if (pref) {
+      const municipalities = await loadMunicipalitiesFromDisk(pref.id);
+      const municipality = municipalities.find(
+        (m) =>
+          m.name === parsed.municipalityName ||
+          parsed.municipalityName.includes(m.name) ||
+          m.name.includes(parsed.municipalityName)
+      );
+      if (municipality) return { lat: municipality.lat, lng: municipality.lng };
+    }
+  }
 
-  const prefectures = await loadPrefecturesFromDisk();
-  const pref = prefectures.find((p) => p.name === parsed.prefectureName);
-  if (!pref) return null;
+  // Step 2: 都道府県なしでも住所から市区町村名を全国スキャン
+  const fromAddress = await geocodeByMunicipalityName(address);
+  if (fromAddress) return fromAddress;
 
-  const municipalities = await loadMunicipalitiesFromDisk(pref.id);
-  const municipality = municipalities.find(
-    (m) =>
-      m.name === parsed.municipalityName ||
-      parsed.municipalityName.includes(m.name) ||
-      m.name.includes(parsed.municipalityName)
-  );
-  if (!municipality) return null;
+  // Step 3: region フィールドで再試行
+  if (region) {
+    const fromRegion = await geocodeByMunicipalityName(region);
+    if (fromRegion) return fromRegion;
+  }
 
-  return { lat: municipality.lat, lng: municipality.lng };
+  return null;
 }
 
 function normalizeType(value: unknown): FacilityType {
@@ -60,26 +84,38 @@ export async function normalizeFacilities(
     const item = raw[i];
     const name = String(item.name ?? "").trim();
     const address = String(item.address ?? "").trim();
+    const region = String(item.region ?? "").trim();
     if (!name && !address) continue;
 
-    let lat = isValidCoord(item.lat) ? item.lat : null;
-    let lng = isValidCoord(item.lng) ? item.lng : null;
+    let lat = isValidCoord(item.lat) ? (item.lat as number) : null;
+    let lng = isValidCoord(item.lng) ? (item.lng as number) : null;
+
+    // Sanity-check Gemini's coordinates are within Japan's bounding box
+    if (
+      lat !== null &&
+      lng !== null &&
+      !(lat >= 24 && lat <= 46 && lng >= 122 && lng <= 154)
+    ) {
+      lat = null;
+      lng = null;
+    }
 
     if (lat === null || lng === null) {
-      const geocoded = address ? await geocodeAddressFallback(address) : null;
+      const geocoded = await geocodeAddressFallback(address, region);
       if (geocoded) {
         lat = geocoded.lat;
         lng = geocoded.lng;
       }
     }
 
+    // Still no coordinates — skip (can't place on radar or route)
     if (lat === null || lng === null) continue;
 
     results.push({
       id: String(item.id ?? `parsed-${i + 1}`),
       name: name || "名称不明",
       address: address || name,
-      region: String(item.region ?? "").trim() || inferRegion(address, name),
+      region: region || inferRegion(address, name),
       type: normalizeType(item.type),
       lat,
       lng,

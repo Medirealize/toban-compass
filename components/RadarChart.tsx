@@ -334,22 +334,13 @@ export function RadarChart({ homeLocation, facilities, maxDistanceKm }: RadarCha
 
           {/* Facility dots */}
           {facilities.map((f) => {
-            const raw = rawPositions.find((p) => p.id === f.id)!;
             const disp = displayPositions.get(f.id)!;
             const color = getFacilityTypeConfig(f.type).dot;
             const isActive = activeId === f.id;
-            const moved = Math.hypot(disp.x - raw.x, disp.y - raw.y) > 3;
             return (
               <g key={f.id} onMouseEnter={() => setActiveId(f.id)} style={{ cursor: "pointer" }}>
-                <line x1={CENTER} y1={CENTER} x2={raw.x} y2={raw.y}
-                  stroke={color} strokeWidth={1} opacity={0.18} />
-                {moved && (
-                  <>
-                    <line x1={raw.x} y1={raw.y} x2={disp.x} y2={disp.y}
-                      stroke={color} strokeWidth={1} strokeDasharray="2 2" opacity={0.35} />
-                    <circle cx={raw.x} cy={raw.y} r={2.5} fill={color} opacity={0.4} />
-                  </>
-                )}
+                <line x1={CENTER} y1={CENTER} x2={disp.x} y2={disp.y}
+                  stroke={color} strokeWidth={1} opacity={0.2} />
                 <circle cx={disp.x} cy={disp.y} r={isActive ? 9 : 7}
                   fill={color} stroke="#fff" strokeWidth={2} />
               </g>

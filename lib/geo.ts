@@ -47,15 +47,14 @@ export function formatDistanceKm(km: number): string {
 export function buildGoogleMapsDirectionsUrl(
   name: string,
   address: string,
-  originLat?: number,
-  originLng?: number
+  originAddress?: string
 ): string {
   const destination = encodeURIComponent(`${name} ${address}`);
-  const base = `https://www.google.com/maps/dir/?api=1&destination=${destination}`;
-  if (originLat !== undefined && originLng !== undefined) {
-    return `${base}&origin=${originLat},${originLng}`;
+  if (originAddress) {
+    const origin = encodeURIComponent(originAddress);
+    return `https://www.google.com/maps/dir/${origin}/${destination}/`;
   }
-  return base;
+  return `https://www.google.com/maps/dir/?api=1&destination=${destination}`;
 }
 
 /** レーダー上の座標（SVG中心原点、北=上） */

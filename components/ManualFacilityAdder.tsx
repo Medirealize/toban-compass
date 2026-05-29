@@ -18,6 +18,7 @@ export function ManualFacilityAdder({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const composingRef = useRef(false);
 
   const handleAdd = useCallback(async () => {
     const trimmed = text.trim();
@@ -53,7 +54,8 @@ export function ManualFacilityAdder({
   }, [text, onAdd]);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Enter" && !loading) void handleAdd();
+    // composingRef で IME 変換中（日本語確定 Enter）を除外する
+    if (e.key === "Enter" && !loading && !composingRef.current) void handleAdd();
   };
 
   return (
@@ -69,6 +71,8 @@ export function ManualFacilityAdder({
           value={text}
           onChange={(e) => setText(e.target.value)}
           onKeyDown={handleKeyDown}
+          onCompositionStart={() => { composingRef.current = true; }}
+          onCompositionEnd={() => { composingRef.current = false; }}
           placeholder="例: 大江整形外科病院、清武のドラッグストア…"
           disabled={loading}
           className="min-h-[44px] flex-1 rounded-xl border border-slate-200 px-3 text-base disabled:opacity-50"

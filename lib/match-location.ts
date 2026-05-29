@@ -35,12 +35,20 @@ export function matchMunicipality(
   );
 }
 
-export function matchTown(towns: TownOption[], townName: string): TownOption {
+/** 町・字名から一致する候補を探す（見つからなければ undefined） */
+export function findTown(
+  towns: TownOption[],
+  townName: string
+): TownOption | undefined {
   const n = normalizeAddressText(townName);
   return (
     towns.find((t) => normalizeAddressText(t.name) === n) ??
     towns.find((t) => n.includes(normalizeAddressText(t.name))) ??
-    towns.find((t) => normalizeAddressText(t.name).includes(n)) ??
-    towns[0]
+    towns.find((t) => normalizeAddressText(t.name).includes(n))
   );
+}
+
+/** @deprecated findTown を使い、フォールバックは呼び出し側で明示すること */
+export function matchTown(towns: TownOption[], townName: string): TownOption {
+  return findTown(towns, townName) ?? towns[0];
 }

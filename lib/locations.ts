@@ -1,4 +1,5 @@
 import type { HomeLocation, Municipality, Prefecture } from "./types";
+import { loadTownsByMunicipality } from "./towns";
 
 const DATA_BASE = "/data/locations";
 
@@ -54,7 +55,41 @@ export async function getDefaultHomeLocation(): Promise<HomeLocation> {
   const municipality =
     municipalities.find((m) => m.id === DEFAULT_MUNICIPALITY_ID) ??
     municipalities[0];
-  return resolveHomeLocation(prefecture, municipality);
+
+  const base = resolveHomeLocation(prefecture, municipality);
+  try {
+    const towns = await loadTownsByMunicipality(
+      prefecture.name,
+      municipality.name
+    );
+    const town = towns[0];
+    if (town) {
+      return { ...base, townName: town.name, lat: town.lat, lng: town.lng };
+    }
+  } catch {
+    // 町字データ未取得時は市区町村座標を使う
+  }
+  return base;
+}
+
+export async function getDefaultLocationSelection(): Promise<{
+  location: HomeLocation;
+  townId: string;
+}> {
+  const location = await getDefaultHomeLocation();
+  try {
+    const towns = await loadTownsByMunicipality(
+      location.prefectureName,
+      location.municipalityName
+    );
+    const town = towns.find((t) => t.name === location.townName) ?? towns[0];
+    if (town) {
+      return { location, townId: town.id };
+    }
+  } catch {
+    // フォールバック
+  }
+  return { location, townId: location.municipalityId };
 }
 
 export function filterMunicipalities(

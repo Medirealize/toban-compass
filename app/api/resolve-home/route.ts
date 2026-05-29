@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { parseHomeAddressWithGemini } from "@/lib/gemini";
+import { findTown } from "@/lib/match-location";
 import {
   parseAddressLocally,
   toUserFriendlyAiError,
 } from "@/lib/parse-address";
+import { loadTownsByMunicipality } from "@/lib/towns";
 
 export async function POST(request: NextRequest) {
   try {
@@ -43,7 +45,36 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    return NextResponse.json({ ...parsed, mode, notice });
+    let lat: number | undefined;
+    let lng: number | undefined;
+    let townId: string | undefined;
+    let resolvedTownName = parsed.townName;
+
+    try {
+      const towns = await loadTownsByMunicipality(
+        parsed.prefectureName,
+        parsed.municipalityName
+      );
+      const matched = findTown(towns, parsed.townName);
+      if (matched) {
+        lat = matched.lat;
+        lng = matched.lng;
+        townId = matched.id;
+        resolvedTownName = matched.name;
+      }
+    } catch {
+      // 町字データ未取得時は parsed のみ返す
+    }
+
+    return NextResponse.json({
+      ...parsed,
+      townName: resolvedTownName,
+      lat,
+      lng,
+      townId,
+      mode,
+      notice,
+    });
   } catch (error) {
     const message =
       error instanceof Error ? error.message : "住所解析に失敗しました";

@@ -44,9 +44,18 @@ export function formatDistanceKm(km: number): string {
   return `${km.toFixed(1)} km`;
 }
 
-export function buildGoogleMapsDirectionsUrl(name: string, address: string): string {
+export function buildGoogleMapsDirectionsUrl(
+  name: string,
+  address: string,
+  originLat?: number,
+  originLng?: number
+): string {
   const destination = encodeURIComponent(`${name} ${address}`);
-  return `https://www.google.com/maps/dir/?api=1&destination=${destination}`;
+  const base = `https://www.google.com/maps/dir/?api=1&destination=${destination}`;
+  if (originLat !== undefined && originLng !== undefined) {
+    return `${base}&origin=${originLat},${originLng}`;
+  }
+  return base;
 }
 
 /** レーダー上の座標（SVG中心原点、北=上） */

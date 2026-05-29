@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   DEFAULT_MUNICIPALITY_ID,
   DEFAULT_PREFECTURE_ID,
-  getDefaultHomeLocation,
+  getDefaultLocationSelection,
 } from "@/lib/locations";
 import { bearingDeg, haversineDistanceKm } from "@/lib/geo";
 import { SAMPLE_FACILITIES } from "@/lib/mock-data";
@@ -36,19 +36,19 @@ export default function HomePage() {
     useState<HomeLocationSelection>({
       prefectureId: DEFAULT_PREFECTURE_ID,
       municipalityId: DEFAULT_MUNICIPALITY_ID,
-      townId: DEFAULT_MUNICIPALITY_ID,
+      townId: "",
     });
   const [facilities, setFacilities] = useState<Facility[]>(SAMPLE_FACILITIES);
   const [isParsing, setIsParsing] = useState(false);
   const [parseResult, setParseResult] = useState<ParseResult | null>(null);
 
   useEffect(() => {
-    getDefaultHomeLocation().then((loc) => {
-      setHomeLocation(loc);
+    getDefaultLocationSelection().then(({ location, townId }) => {
+      setHomeLocation(location);
       setLocationSelection({
-        prefectureId: loc.prefectureId,
-        municipalityId: loc.municipalityId,
-        townId: loc.municipalityId,
+        prefectureId: location.prefectureId,
+        municipalityId: location.municipalityId,
+        townId,
       });
     });
   }, []);
@@ -185,7 +185,7 @@ export default function HomePage() {
               <h2 className="mb-2 text-base font-semibold text-slate-700">
                 距離が近い順
               </h2>
-              <FacilityList facilities={sortedFacilities} />
+              <FacilityList facilities={sortedFacilities} homeLocation={homeLocation} />
             </section>
           </>
         )}

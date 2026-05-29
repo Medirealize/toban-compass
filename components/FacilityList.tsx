@@ -1,10 +1,11 @@
 "use client";
 
-import type { FacilityWithDistance } from "@/lib/types";
+import type { FacilityWithDistance, HomeLocation } from "@/lib/types";
 import { buildGoogleMapsDirectionsUrl, formatDistanceKm } from "@/lib/geo";
 
 interface FacilityListProps {
   facilities: FacilityWithDistance[];
+  homeLocation: HomeLocation | null;
 }
 
 function TypeBadge({ type }: { type: FacilityWithDistance["type"] }) {
@@ -22,7 +23,7 @@ function TypeBadge({ type }: { type: FacilityWithDistance["type"] }) {
   );
 }
 
-export function FacilityList({ facilities }: FacilityListProps) {
+export function FacilityList({ facilities, homeLocation }: FacilityListProps) {
   if (facilities.length === 0) {
     return (
       <p className="rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-8 text-center text-base text-slate-500">
@@ -57,7 +58,12 @@ export function FacilityList({ facilities }: FacilityListProps) {
                 対応時間: {f.hours}
               </p>
               <a
-                href={buildGoogleMapsDirectionsUrl(f.name, f.address)}
+                href={buildGoogleMapsDirectionsUrl(
+                  f.name,
+                  f.address,
+                  homeLocation?.lat,
+                  homeLocation?.lng
+                )}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="mt-3 flex min-h-[44px] w-full items-center justify-center rounded-xl bg-slate-900 px-4 text-base font-semibold text-white transition-colors active:bg-slate-700"

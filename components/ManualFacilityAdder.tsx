@@ -37,11 +37,12 @@ export function ManualFacilityAdder({
 
   // 編集中の施設
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [editText, setEditText] = useState("");
+  const [editName, setEditName] = useState("");
+  const [editAddress, setEditAddress] = useState("");
   const [editLoading, setEditLoading] = useState(false);
   const [editError, setEditError] = useState<string | null>(null);
   const editComposingRef = useRef(false);
-  const editInputRef = useRef<HTMLInputElement>(null);
+  const editNameRef = useRef<HTMLInputElement>(null);
 
   // ── 新規追加 ──────────────────────────────────────────────────────────────
 
@@ -79,53 +80,57 @@ export function ManualFacilityAdder({
 
   const startEdit = (f: Facility) => {
     setEditingId(f.id);
-    setEditText(f.name);
+    setEditName(f.name);
+    setEditAddress(f.address);
     setEditError(null);
-    setTimeout(() => editInputRef.current?.focus(), 50);
+    setTimeout(() => editNameRef.current?.focus(), 50);
   };
 
   const cancelEdit = () => {
     setEditingId(null);
-    setEditText("");
+    setEditName("");
+    setEditAddress("");
     setEditError(null);
   };
 
   const handleUpdate = useCallback(
     async (id: string, originalFacility: Facility) => {
-      const trimmed = editText.trim();
-      if (!trimmed) return;
+      const name = editName.trim() || originalFacility.name;
+      const address = editAddress.trim();
+      if (!address) {
+        setEditError("住所を入力してください");
+        return;
+      }
       setEditLoading(true);
       setEditError(null);
       try {
-        const data = await resolvePlace(trimmed, regionHint);
+        // 住所から直接ローカルジオコーディング（Geminiに頼らない）
+        const geoRes = await fetch("/api/geocode-address", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ address }),
+        });
+        const geoData = await geoRes.json();
+        if (!geoRes.ok) throw new Error(geoData.error ?? "位置の特定に失敗しました");
+
         onUpdate(id, {
           ...originalFacility,
-          name: data.name || trimmed,
-          address: data.address || originalFacility.address,
-          type: data.type === "pharmacy" ? "pharmacy" : "hospital",
-          lat: data.lat,
-          lng: data.lng,
+          name,
+          address,
+          lat: geoData.lat,
+          lng: geoData.lng,
         });
         setEditingId(null);
-        setEditText("");
+        setEditName("");
+        setEditAddress("");
       } catch (e) {
         setEditError(e instanceof Error ? e.message : "更新に失敗しました");
       } finally {
         setEditLoading(false);
       }
     },
-    [editText, regionHint, onUpdate]
+    [editName, editAddress, onUpdate]
   );
-
-  const handleEditKeyDown = (
-    e: React.KeyboardEvent<HTMLInputElement>,
-    f: Facility
-  ) => {
-    if (e.key === "Enter" && !editLoading && !editComposingRef.current) {
-      void handleUpdate(f.id, f);
-    }
-    if (e.key === "Escape") cancelEdit();
-  };
 
   // ── レンダリング ──────────────────────────────────────────────────────────
 
@@ -167,17 +172,33 @@ export function ManualFacilityAdder({
               {editingId === f.id ? (
                 /* ── 編集モード ── */
                 <div className="space-y-2">
-                  <input
-                    ref={editInputRef}
-                    value={editText}
-                    onChange={(e) => setEditText(e.target.value)}
-                    onKeyDown={(e) => handleEditKeyDown(e, f)}
-                    onCompositionStart={() => { editComposingRef.current = true; }}
-                    onCompositionEnd={() => { editComposingRef.current = false; }}
-                    disabled={editLoading}
-                    placeholder="施設名や住所を入力"
-                    className="min-h-[40px] w-full rounded-lg border border-sky-300 bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-sky-300 disabled:opacity-50"
-                  />
+                  <div>
+                    <label className="mb-0.5 block text-xs font-medium text-slate-500">施設名</label>
+                    <input
+                      ref={editNameRef}
+                      value={editName}
+                      onChange={(e) => setEditName(e.target.value)}
+                      onCompositionStart={() => { editComposingRef.current = true; }}
+                      onCompositionEnd={() => { editComposingRef.current = false; }}
+                      disabled={editLoading}
+                      placeholder="施設名"
+                      className="min-h-[40px] w-full rounded-lg border border-slate-200 bg-white px-3 text-sm focus:border-sky-300 focus:outline-none focus:ring-2 focus:ring-sky-200 disabled:opacity-50"
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-0.5 block text-xs font-medium text-slate-500">
+                      住所 <span className="text-slate-400">（正しい住所を入力すると座標も更新されます）</span>
+                    </label>
+                    <input
+                      value={editAddress}
+                      onChange={(e) => setEditAddress(e.target.value)}
+                      onCompositionStart={() => { editComposingRef.current = true; }}
+                      onCompositionEnd={() => { editComposingRef.current = false; }}
+                      disabled={editLoading}
+                      placeholder="例: 宮崎県宮崎市清武町加納"
+                      className="min-h-[40px] w-full rounded-lg border border-slate-200 bg-white px-3 text-sm focus:border-sky-300 focus:outline-none focus:ring-2 focus:ring-sky-200 disabled:opacity-50"
+                    />
+                  </div>
                   {editError && (
                     <p className="text-xs text-red-600">{editError}</p>
                   )}
@@ -185,10 +206,10 @@ export function ManualFacilityAdder({
                     <button
                       type="button"
                       onClick={() => void handleUpdate(f.id, f)}
-                      disabled={editLoading || !editText.trim()}
+                      disabled={editLoading || !editAddress.trim()}
                       className="flex-1 rounded-lg bg-sky-600 py-1.5 text-sm font-semibold text-white disabled:opacity-40"
                     >
-                      {editLoading ? "検索中…" : "再検索して更新"}
+                      {editLoading ? "位置を特定中…" : "住所で更新"}
                     </button>
                     <button
                       type="button"

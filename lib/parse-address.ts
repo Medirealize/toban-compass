@@ -14,22 +14,63 @@ interface MunicipalityEntry {
   prefName: string;
 }
 
-// In-memory index of all municipalities across all prefectures (populated on first use)
+// ── キャッシュ ────────────────────────────────────────────────────────────────
+let prefecturesCache: Prefecture[] | null = null;
+const municipalitiesByPrefCache = new Map<string, Municipality[]>();
 let allMunicipalitiesCache: MunicipalityEntry[] | null = null;
+// 進行中のPromiseを保持してダブルロードを防ぐ
+let allMunicipalitiesLoading: Promise<MunicipalityEntry[]> | null = null;
+
+// ── ファイルロード ──────────────────────────────────────────────────────────
+
+export async function loadPrefecturesFromDisk(): Promise<Prefecture[]> {
+  if (prefecturesCache) return prefecturesCache;
+  const raw = await readFile(path.join(DATA_DIR, "prefectures.json"), "utf8");
+  prefecturesCache = JSON.parse(raw) as Prefecture[];
+  return prefecturesCache;
+}
+
+export async function loadMunicipalitiesFromDisk(
+  prefectureId: string
+): Promise<Municipality[]> {
+  const cached = municipalitiesByPrefCache.get(prefectureId);
+  if (cached) return cached;
+  const raw = await readFile(path.join(DATA_DIR, `${prefectureId}.json`), "utf8");
+  const data = JSON.parse(raw) as Municipality[];
+  municipalitiesByPrefCache.set(prefectureId, data);
+  return data;
+}
+
+// ── 全国市区町村インデックス（並列ロード） ────────────────────────────────
 
 async function getAllMunicipalities(): Promise<MunicipalityEntry[]> {
   if (allMunicipalitiesCache) return allMunicipalitiesCache;
-  const prefectures = await loadPrefecturesFromDisk();
-  const entries: MunicipalityEntry[] = [];
-  for (const pref of prefectures) {
-    const municipalities = await loadMunicipalitiesFromDisk(pref.id);
-    for (const m of municipalities) {
-      entries.push({ lat: m.lat, lng: m.lng, name: m.name, prefName: pref.name });
-    }
-  }
-  // Longer names first so "宮崎市" matches before "崎市" etc.
-  allMunicipalitiesCache = entries.sort((a, b) => b.name.length - a.name.length);
-  return allMunicipalitiesCache;
+  // 複数の並列呼び出しが同時に来てもロードは1回だけ
+  if (allMunicipalitiesLoading) return allMunicipalitiesLoading;
+
+  allMunicipalitiesLoading = (async () => {
+    const prefectures = await loadPrefecturesFromDisk();
+    // 47都道府県を並列ロード（逐次→並列で大幅高速化）
+    const chunks = await Promise.all(
+      prefectures.map((pref) =>
+        loadMunicipalitiesFromDisk(pref.id).then((muns) =>
+          muns.map((m) => ({
+            lat: m.lat,
+            lng: m.lng,
+            name: m.name,
+            prefName: pref.name,
+          }))
+        )
+      )
+    );
+    // 長い名前を先に置くことで「宮崎市」が「崎市」より先にマッチ
+    allMunicipalitiesCache = chunks
+      .flat()
+      .sort((a, b) => b.name.length - a.name.length);
+    return allMunicipalitiesCache;
+  })();
+
+  return allMunicipalitiesLoading;
 }
 
 /** 都道府県名なしでも市区町村名から座標を引く */
@@ -43,22 +84,12 @@ export async function geocodeByMunicipalityName(
   return match ? { lat: match.lat, lng: match.lng } : null;
 }
 
+// ── 住所パース ──────────────────────────────────────────────────────────────
+
 export interface ParsedAddressParts {
   prefectureName: string;
   municipalityName: string;
   townName: string;
-}
-
-export async function loadPrefecturesFromDisk(): Promise<Prefecture[]> {
-  const raw = await readFile(path.join(DATA_DIR, "prefectures.json"), "utf8");
-  return JSON.parse(raw) as Prefecture[];
-}
-
-export async function loadMunicipalitiesFromDisk(
-  prefectureId: string
-): Promise<Municipality[]> {
-  const raw = await readFile(path.join(DATA_DIR, `${prefectureId}.json`), "utf8");
-  return JSON.parse(raw) as Municipality[];
 }
 
 /** AI未使用時のルールベース住所分解 */
@@ -81,12 +112,10 @@ export async function parseAddressLocally(
   const afterCity = normalized.slice(
     normalized.indexOf(municipality.name) + municipality.name.length
   );
-  const townName = afterCity || municipality.name;
-
   return {
     prefectureName: prefecture.name,
     municipalityName: municipality.name,
-    townName,
+    townName: afterCity || municipality.name,
   };
 }
 

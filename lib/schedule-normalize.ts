@@ -78,52 +78,70 @@ function inferRegion(address: string, name: string): string {
 export async function normalizeFacilities(
   raw: Array<Partial<Facility> & Record<string, unknown>>
 ): Promise<Facility[]> {
-  const results: Facility[] = [];
+  // ── Step 1: 同期で各アイテムを前処理 ──────────────────────────────────────
+  type Candidate = {
+    item: (typeof raw)[number];
+    i: number;
+    name: string;
+    address: string;
+    region: string;
+    lat: number | null;
+    lng: number | null;
+  };
 
-  for (let i = 0; i < raw.length; i++) {
-    const item = raw[i];
-    const name = String(item.name ?? "").trim();
-    const address = String(item.address ?? "").trim();
-    const region = String(item.region ?? "").trim();
-    if (!name && !address) continue;
+  const candidates: Candidate[] = raw
+    .map((item, i) => {
+      const name = String(item.name ?? "").trim();
+      const address = String(item.address ?? "").trim();
+      const region = String(item.region ?? "").trim();
+      if (!name && !address) return null;
 
-    let lat = isValidCoord(item.lat) ? (item.lat as number) : null;
-    let lng = isValidCoord(item.lng) ? (item.lng as number) : null;
+      let lat = isValidCoord(item.lat) ? (item.lat as number) : null;
+      let lng = isValidCoord(item.lng) ? (item.lng as number) : null;
 
-    // Sanity-check Gemini's coordinates are within Japan's bounding box
-    if (
-      lat !== null &&
-      lng !== null &&
-      !(lat >= 24 && lat <= 46 && lng >= 122 && lng <= 154)
-    ) {
-      lat = null;
-      lng = null;
-    }
-
-    if (lat === null || lng === null) {
-      const geocoded = await geocodeAddressFallback(address, region);
-      if (geocoded) {
-        lat = geocoded.lat;
-        lng = geocoded.lng;
+      // 日本の領域外座標を破棄
+      if (
+        lat !== null &&
+        lng !== null &&
+        !(lat >= 24 && lat <= 46 && lng >= 122 && lng <= 154)
+      ) {
+        lat = null;
+        lng = null;
       }
-    }
 
-    // Still no coordinates — skip (can't place on radar or route)
-    if (lat === null || lng === null) continue;
+      return { item, i, name, address, region, lat, lng };
+    })
+    .filter((c): c is Candidate => c !== null);
 
-    results.push({
-      id: String(item.id ?? `parsed-${i + 1}`),
-      name: name || "名称不明",
-      address: address || name,
-      region: region || inferRegion(address, name),
-      type: normalizeType(item.type),
-      lat,
-      lng,
-      hours: String(item.hours ?? "要確認").trim() || "要確認",
-    });
-  }
+  // ── Step 2: 座標が不足している施設を並列ジオコーディング ─────────────────
+  // シリアルで awaiting するのではなく Promise.all で一括実行
+  await Promise.all(
+    candidates
+      .filter((c) => c.lat === null || c.lng === null)
+      .map(async (c) => {
+        const geocoded = await geocodeAddressFallback(c.address, c.region);
+        if (geocoded) {
+          c.lat = geocoded.lat;
+          c.lng = geocoded.lng;
+        }
+      })
+  );
 
-  return results;
+  // ── Step 3: 座標が確定した施設だけ返す ────────────────────────────────────
+  return candidates
+    .filter((c): c is Candidate & { lat: number; lng: number } =>
+      c.lat !== null && c.lng !== null
+    )
+    .map((c) => ({
+      id: String(c.item.id ?? `parsed-${c.i + 1}`),
+      name: c.name || "名称不明",
+      address: c.address || c.name,
+      region: c.region || inferRegion(c.address, c.name),
+      type: normalizeType(c.item.type),
+      lat: c.lat,
+      lng: c.lng,
+      hours: String(c.item.hours ?? "要確認").trim() || "要確認",
+    }));
 }
 
 export function resolveUploadMimeType(file: File): string {

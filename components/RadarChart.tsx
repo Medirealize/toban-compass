@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import type { HomeLocation, FacilityWithDistance } from "@/lib/types";
 import { formatHomeLocationLabel, formatHomeLocationShort } from "@/lib/types";
 import { polarToCartesian } from "@/lib/geo";
@@ -9,7 +9,81 @@ const SIZE = 320;
 const CENTER = SIZE / 2;
 const MAX_RADIUS = 130;
 const RING_STEPS = [0.25, 0.5, 0.75, 1];
-const TAP_RADIUS = 22; // SVG units — max distance to activate a dot
+const TAP_RADIUS = 20;
+
+/** 各ドットの「元の位置」を計算 */
+function calcRawPos(
+  f: FacilityWithDistance,
+  safeMax: number
+): { x: number; y: number } {
+  const normalized = Math.min(f.distanceKm / safeMax, 1);
+  const { x, y } = polarToCartesian(
+    CENTER,
+    CENTER,
+    normalized * MAX_RADIUS,
+    f.bearingDeg
+  );
+  return { x: Math.round(x * 100) / 100, y: Math.round(y * 100) / 100 };
+}
+
+/**
+ * フォース指向で重なりを解消する。
+ * - 近すぎるドット同士を MIN_SEP だけ押し離す
+ * - 各ドットは元位置へ SPRING 力で引き戻される
+ * → 方向感を保ちながら全ドットが個別にタップできる位置に落ち着く
+ */
+function separateDots(
+  inputs: Array<{ id: string; x: number; y: number }>
+): Map<string, { x: number; y: number }> {
+  const MIN_SEP = 20;   // ドット中心間の最低距離 (px)
+  const SPRING = 0.12;  // 元位置への引き戻し強さ (0〜1)
+  const ITERS = 80;
+
+  const orig = inputs.map((d) => ({ ...d }));
+  const cur = inputs.map((d) => ({ ...d }));
+
+  for (let iter = 0; iter < ITERS; iter++) {
+    let anyPushed = false;
+
+    // 押し離し力
+    for (let i = 0; i < cur.length; i++) {
+      for (let j = i + 1; j < cur.length; j++) {
+        const dx = cur[j].x - cur[i].x;
+        const dy = cur[j].y - cur[i].y;
+        const dist = Math.hypot(dx, dy);
+        if (dist < MIN_SEP) {
+          const push = (MIN_SEP - dist) / 2 + 0.5;
+          const angle =
+            dist < 0.1
+              ? ((j - i) * Math.PI * 2) / cur.length
+              : Math.atan2(dy, dx);
+          cur[i].x -= Math.cos(angle) * push;
+          cur[i].y -= Math.sin(angle) * push;
+          cur[j].x += Math.cos(angle) * push;
+          cur[j].y += Math.sin(angle) * push;
+          anyPushed = true;
+        }
+      }
+    }
+
+    // バネ引き戻し力
+    for (let i = 0; i < cur.length; i++) {
+      cur[i].x += (orig[i].x - cur[i].x) * SPRING;
+      cur[i].y += (orig[i].y - cur[i].y) * SPRING;
+    }
+
+    if (!anyPushed) break;
+  }
+
+  // SVG 内に収める
+  const margin = 12;
+  for (const p of cur) {
+    p.x = Math.max(margin, Math.min(SIZE - margin, p.x));
+    p.y = Math.max(margin, Math.min(SIZE - margin, p.y));
+  }
+
+  return new Map(cur.map((p) => [p.id, { x: p.x, y: p.y }]));
+}
 
 interface RadarChartProps {
   homeLocation: HomeLocation;
@@ -69,20 +143,6 @@ function TooltipLabel({
   );
 }
 
-function facilityPos(
-  f: FacilityWithDistance,
-  safeMax: number
-): { x: number; y: number } {
-  const normalized = Math.min(f.distanceKm / safeMax, 1);
-  const { x, y } = polarToCartesian(
-    CENTER,
-    CENTER,
-    normalized * MAX_RADIUS,
-    f.bearingDeg
-  );
-  return { x: Math.round(x * 100) / 100, y: Math.round(y * 100) / 100 };
-}
-
 export function RadarChart({
   homeLocation,
   facilities,
@@ -93,9 +153,22 @@ export function RadarChart({
   const fullLabel = formatHomeLocationLabel(homeLocation);
   const shortLabel = formatHomeLocationShort(homeLocation);
 
+  // 元の座標（真の方向・距離を示す）
+  const rawPositions = useMemo(
+    () =>
+      facilities.map((f) => ({ id: f.id, ...calcRawPos(f, safeMax) })),
+    [facilities, safeMax]
+  );
+
+  // 分離後の描画座標
+  const displayPositions = useMemo(
+    () => separateDots(rawPositions),
+    [rawPositions]
+  );
+
   const activeFacility = facilities.find((f) => f.id === activeId) ?? null;
 
-  // Find the closest dot to the tap/click point — avoids wrong-dot selection
+  // タップ・クリック: 表示位置から最近傍ドットを選ぶ
   const handleSvgClick = useCallback(
     (e: React.MouseEvent<SVGSVGElement>) => {
       const rect = e.currentTarget.getBoundingClientRect();
@@ -107,18 +180,17 @@ export function RadarChart({
       let closestId: string | null = null;
       let minDist = TAP_RADIUS;
 
-      for (const f of facilities) {
-        const { x, y } = facilityPos(f, safeMax);
-        const dist = Math.hypot(px - x, py - y);
+      for (const [id, pos] of displayPositions) {
+        const dist = Math.hypot(px - pos.x, py - pos.y);
         if (dist < minDist) {
           minDist = dist;
-          closestId = f.id;
+          closestId = id;
         }
       }
 
       setActiveId((prev) => (prev === closestId ? null : closestId));
     },
-    [facilities, safeMax]
+    [displayPositions]
   );
 
   return (
@@ -134,7 +206,7 @@ export function RadarChart({
         onClick={handleSvgClick}
         onMouseLeave={() => setActiveId(null)}
       >
-        {/* Distance rings */}
+        {/* 距離リング */}
         {RING_STEPS.map((step) => (
           <circle
             key={step}
@@ -148,7 +220,7 @@ export function RadarChart({
           />
         ))}
 
-        {/* Cardinal labels */}
+        {/* 方角ラベル */}
         {[
           { label: "北", x: CENTER, y: 12 },
           { label: "東", x: SIZE - 16, y: CENTER + 4 },
@@ -166,7 +238,7 @@ export function RadarChart({
           </text>
         ))}
 
-        {/* Home marker */}
+        {/* 自宅マーカー */}
         <circle cx={CENTER} cy={CENTER} r={10} fill="#0ea5e9" />
         <circle
           cx={CENTER}
@@ -186,11 +258,14 @@ export function RadarChart({
           {shortLabel}
         </text>
 
-        {/* Facility dots — hover activates tooltip on desktop */}
+        {/* 施設ドット（分離後の表示座標を使用） */}
         {facilities.map((f) => {
-          const { x: cx, y: cy } = facilityPos(f, safeMax);
+          const raw = rawPositions.find((p) => p.id === f.id)!;
+          const disp = displayPositions.get(f.id)!;
           const color = f.type === "hospital" ? "#2563eb" : "#16a34a";
           const isActive = activeId === f.id;
+          const moved =
+            Math.hypot(disp.x - raw.x, disp.y - raw.y) > 3;
 
           return (
             <g
@@ -198,18 +273,43 @@ export function RadarChart({
               onMouseEnter={() => setActiveId(f.id)}
               style={{ cursor: "pointer" }}
             >
+              {/* 中心→真の方向への補助線 */}
               <line
                 x1={CENTER}
                 y1={CENTER}
-                x2={cx}
-                y2={cy}
+                x2={raw.x}
+                y2={raw.y}
                 stroke={color}
                 strokeWidth={1}
-                opacity={0.2}
+                opacity={0.18}
               />
+              {/* 表示位置が真位置からずれた場合のリーダー線 */}
+              {moved && (
+                <line
+                  x1={raw.x}
+                  y1={raw.y}
+                  x2={disp.x}
+                  y2={disp.y}
+                  stroke={color}
+                  strokeWidth={1}
+                  strokeDasharray="2 2"
+                  opacity={0.35}
+                />
+              )}
+              {/* 真の位置に小さなアンカー点 */}
+              {moved && (
+                <circle
+                  cx={raw.x}
+                  cy={raw.y}
+                  r={2.5}
+                  fill={color}
+                  opacity={0.4}
+                />
+              )}
+              {/* メインドット（分離後の表示位置） */}
               <circle
-                cx={cx}
-                cy={cy}
+                cx={disp.x}
+                cy={disp.y}
                 r={isActive ? 9 : 7}
                 fill={color}
                 stroke="#fff"
@@ -219,18 +319,19 @@ export function RadarChart({
           );
         })}
 
-        {/* Tooltip rendered last — always on top of all dots */}
-        {activeFacility && (() => {
-          const { x: cx, y: cy } = facilityPos(activeFacility, safeMax);
-          return (
-            <TooltipLabel
-              cx={cx}
-              cy={cy}
-              name={activeFacility.name}
-              distanceKm={activeFacility.distanceKm}
-            />
-          );
-        })()}
+        {/* ツールチップ（最前面に描画） */}
+        {activeFacility &&
+          (() => {
+            const disp = displayPositions.get(activeFacility.id)!;
+            return (
+              <TooltipLabel
+                cx={disp.x}
+                cy={disp.y}
+                name={activeFacility.name}
+                distanceKm={activeFacility.distanceKm}
+              />
+            );
+          })()}
       </svg>
 
       <div className="mt-2 flex justify-center gap-4 text-xs text-slate-600">

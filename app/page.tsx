@@ -99,13 +99,21 @@ export default function HomePage() {
       }
 
       const data = await res.json();
-      setFacilities(data.facilities);
+      if (data.facilities?.length) {
+        setFacilities(data.facilities);
+      }
       const sourceLabel = file.name.startsWith("pasted-")
         ? "貼り付け画像"
         : `「${file.name}」`;
-      setParseMessage(
-        `${sourceLabel}から ${data.facilities.length} 件を読み込みました`
-      );
+      if (data.notice) {
+        setParseMessage(`${sourceLabel}: ${data.notice}`);
+      } else if (data.facilities?.length) {
+        setParseMessage(
+          `${sourceLabel}から ${data.facilities.length} 件を読み込みました`
+        );
+      } else {
+        throw new Error("施設データが空です");
+      }
     } catch (e) {
       setParseMessage(
         e instanceof Error ? e.message : "解析中にエラーが発生しました"

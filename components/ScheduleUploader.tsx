@@ -155,9 +155,16 @@ export function ScheduleUploader({
       {parseMessage && (
         <p
           className={`mt-2 text-sm ${
-            parseMessage.includes("失敗") || parseMessage.includes("エラー")
+            parseMessage.includes("失敗") ||
+            parseMessage.includes("エラー") ||
+            parseMessage.includes("上限") ||
+            parseMessage.includes("拒否") ||
+            parseMessage.includes("未設定")
               ? "text-red-600"
-              : "text-green-700"
+              : parseMessage.includes("サンプル") ||
+                  parseMessage.includes("代替")
+                ? "text-amber-700"
+                : "text-green-700"
           }`}
         >
           {parseMessage}

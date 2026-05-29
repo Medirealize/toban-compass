@@ -1,10 +1,14 @@
 "use client";
 
-import type { FacilityWithDistance } from "@/lib/types";
+import { useState } from "react";
+import type { FacilityWithDistance, HomeLocation } from "@/lib/types";
 import { buildGoogleMapsDirectionsUrl, formatDistanceKm } from "@/lib/geo";
+import { FacilityRadarModal } from "@/components/FacilityRadarModal";
 
 interface FacilityListProps {
   facilities: FacilityWithDistance[];
+  homeLocation: HomeLocation | null;
+  gpsLocation: HomeLocation | null;
 }
 
 function TypeBadge({ type }: { type: FacilityWithDistance["type"] }) {
@@ -22,7 +26,13 @@ function TypeBadge({ type }: { type: FacilityWithDistance["type"] }) {
   );
 }
 
-export function FacilityList({ facilities }: FacilityListProps) {
+export function FacilityList({
+  facilities,
+  homeLocation,
+  gpsLocation,
+}: FacilityListProps) {
+  const [modalFacility, setModalFacility] = useState<FacilityWithDistance | null>(null);
+
   if (facilities.length === 0) {
     return (
       <p className="rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-8 text-center text-base text-slate-500">
@@ -32,42 +42,70 @@ export function FacilityList({ facilities }: FacilityListProps) {
   }
 
   return (
-    <ul className="flex flex-col gap-3">
-      {facilities.map((f, index) => (
-        <li
-          key={f.id}
-          className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
-        >
-          <div className="flex items-start gap-3">
-            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-100 text-sm font-bold text-slate-600">
-              {index + 1}
-            </span>
-            <div className="min-w-0 flex-1">
-              <div className="mb-2 flex flex-wrap items-center gap-2">
-                <TypeBadge type={f.type} />
-                <span className="text-sm font-medium text-sky-700">
-                  {formatDistanceKm(f.distanceKm)}
-                </span>
+    <>
+      <ul className="flex flex-col gap-3">
+        {facilities.map((f, index) => (
+          <li
+            key={f.id}
+            className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
+          >
+            <div className="flex items-start gap-3">
+              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-100 text-sm font-bold text-slate-600">
+                {index + 1}
+              </span>
+              <div className="min-w-0 flex-1">
+                <div className="mb-2 flex flex-wrap items-center gap-2">
+                  <TypeBadge type={f.type} />
+                  <span className="text-sm font-medium text-sky-700">
+                    {formatDistanceKm(f.distanceKm)}
+                  </span>
+                </div>
+                <h3 className="text-lg font-bold leading-snug text-slate-900">
+                  {f.name}
+                </h3>
+                <p className="mt-1 text-base text-slate-600">{f.address}</p>
+                <p className="mt-1 text-sm text-slate-500">
+                  対応時間: {f.hours}
+                </p>
+
+                <div className="mt-3 flex flex-col gap-2">
+                  {/* おおよその位置ボタン */}
+                  {homeLocation && (
+                    <button
+                      type="button"
+                      onClick={() => setModalFacility(f)}
+                      className="flex min-h-[44px] w-full items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 px-4 text-sm font-semibold text-slate-700 transition-colors active:bg-slate-100"
+                    >
+                      <span>🧭</span>
+                      おおよその位置
+                    </button>
+                  )}
+
+                  {/* ここへのルート */}
+                  <a
+                    href={buildGoogleMapsDirectionsUrl(f.lat, f.lng)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex min-h-[44px] w-full items-center justify-center rounded-xl bg-slate-900 px-4 text-base font-semibold text-white transition-colors active:bg-slate-700"
+                  >
+                    ここへのルート（Googleマップ）
+                  </a>
+                </div>
               </div>
-              <h3 className="text-lg font-bold leading-snug text-slate-900">
-                {f.name}
-              </h3>
-              <p className="mt-1 text-base text-slate-600">{f.address}</p>
-              <p className="mt-1 text-sm text-slate-500">
-                対応時間: {f.hours}
-              </p>
-              <a
-                href={buildGoogleMapsDirectionsUrl(f.lat, f.lng)}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="mt-3 flex min-h-[44px] w-full items-center justify-center rounded-xl bg-slate-900 px-4 text-base font-semibold text-white transition-colors active:bg-slate-700"
-              >
-                ここへのルート（Googleマップ）
-              </a>
             </div>
-          </div>
-        </li>
-      ))}
-    </ul>
+          </li>
+        ))}
+      </ul>
+
+      {/* 逆レーダーモーダル */}
+      {modalFacility && homeLocation && (
+        <FacilityRadarModal
+          facility={modalFacility}
+          homeLocation={homeLocation}
+          gpsLocation={gpsLocation}
+          onClose={() => setModalFacility(null)}
+        />
+      )}
+    </>
   );
 }

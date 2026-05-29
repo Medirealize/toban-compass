@@ -298,7 +298,11 @@ export default function HomePage() {
                   お住まいエリア基準
                 </span>
               </h2>
-              <FacilityList facilities={homeFacilities} />
+              <FacilityList
+                facilities={homeFacilities}
+                homeLocation={homeLocation}
+                gpsLocation={gpsLocation}
+              />
             </section>
           </>
         )}

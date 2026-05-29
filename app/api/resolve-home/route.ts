@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { parseHomeAddressWithGemini } from "@/lib/gemini";
+import {
+  parseAddressLocally,
+  toUserFriendlyAiError,
+} from "@/lib/parse-address";
 
 export async function POST(request: NextRequest) {
   try {
@@ -12,19 +16,37 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (!process.env.GEMINI_API_KEY) {
+    let parsed = null;
+    let mode: "ai" | "local" = "local";
+    let notice: string | undefined;
+
+    if (process.env.GEMINI_API_KEY) {
+      try {
+        parsed = await parseHomeAddressWithGemini(rawAddress);
+        mode = "ai";
+      } catch (error) {
+        notice = toUserFriendlyAiError(error);
+        parsed = await parseAddressLocally(rawAddress);
+      }
+    } else {
+      notice = "AI APIキー未設定のため、ルールベースで解析しました。";
+      parsed = await parseAddressLocally(rawAddress);
+    }
+
+    if (!parsed) {
       return NextResponse.json(
-        { error: "GEMINI_API_KEY が未設定です" },
+        {
+          error:
+            "住所を解析できませんでした。例: 宮崎県宮崎市清武町加納 の形式で入力してください。",
+        },
         { status: 400 }
       );
     }
 
-    const parsed = await parseHomeAddressWithGemini(rawAddress);
-    return NextResponse.json(parsed);
-  } catch {
-    return NextResponse.json(
-      { error: "住所解析に失敗しました" },
-      { status: 500 }
-    );
+    return NextResponse.json({ ...parsed, mode, notice });
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "住所解析に失敗しました";
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

@@ -2,12 +2,16 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  filterMunicipalities,
   loadMunicipalities,
   loadPrefectures,
   resolveHomeLocation,
 } from "@/lib/locations";
-import { filterTowns, loadTownsByMunicipality, type TownOption } from "@/lib/towns";
+import {
+  matchMunicipality,
+  matchPrefecture,
+  matchTown,
+} from "@/lib/match-location";
+import { loadTownsByMunicipality, type TownOption } from "@/lib/towns";
 import type { HomeLocation, Municipality, Prefecture } from "@/lib/types";
 import { formatHomeLocationLabel } from "@/lib/types";
 
@@ -32,29 +36,28 @@ export function HomeLocationSelector({
   const [prefectures, setPrefectures] = useState<Prefecture[]>([]);
   const [municipalities, setMunicipalities] = useState<Municipality[]>([]);
   const [towns, setTowns] = useState<TownOption[]>([]);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [townSearchQuery, setTownSearchQuery] = useState("");
   const [rawAddress, setRawAddress] = useState("");
   const [isLoadingPrefs, setIsLoadingPrefs] = useState(true);
   const [isLoadingCities, setIsLoadingCities] = useState(true);
   const [isLoadingTowns, setIsLoadingTowns] = useState(true);
   const [isResolvingAddress, setIsResolvingAddress] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [addressError, setAddressError] = useState<string | null>(null);
+  const [addressNotice, setAddressNotice] = useState<string | null>(null);
 
   useEffect(() => {
     loadPrefectures()
       .then(setPrefectures)
-      .catch(() => setError("都道府県データの読み込みに失敗しました"))
+      .catch(() => setLoadError("都道府県データの読み込みに失敗しました"))
       .finally(() => setIsLoadingPrefs(false));
   }, []);
 
   useEffect(() => {
     if (!value.prefectureId) return;
     setIsLoadingCities(true);
-    setSearchQuery("");
     loadMunicipalities(value.prefectureId)
       .then(setMunicipalities)
-      .catch(() => setError("市区町村データの読み込みに失敗しました"))
+      .catch(() => setLoadError("市区町村データの読み込みに失敗しました"))
       .finally(() => setIsLoadingCities(false));
   }, [value.prefectureId]);
 
@@ -71,15 +74,6 @@ export function HomeLocationSelector({
   const selectedTown = useMemo(
     () => towns.find((item) => item.id === value.townId),
     [towns, value.townId]
-  );
-
-  const filteredMunicipalities = useMemo(
-    () => filterMunicipalities(municipalities, searchQuery),
-    [municipalities, searchQuery]
-  );
-  const filteredTowns = useMemo(
-    () => filterTowns(towns, townSearchQuery),
-    [towns, townSearchQuery]
   );
 
   const notifyChange = useCallback(
@@ -100,7 +94,6 @@ export function HomeLocationSelector({
   useEffect(() => {
     if (!prefecture || !municipality) return;
     setIsLoadingTowns(true);
-    setTownSearchQuery("");
     loadTownsByMunicipality(prefecture.name, municipality.name)
       .then((nextTowns) => {
         setTowns(nextTowns);
@@ -129,13 +122,11 @@ export function HomeLocationSelector({
     if (!pref) return;
     const cities = await loadMunicipalities(prefectureId);
     setMunicipalities(cities);
-    setSearchQuery("");
     const muni = cities[0];
     const nextTowns = await loadTownsByMunicipality(pref.name, muni.name).catch(
       () => [{ id: muni.id, name: muni.name, lat: muni.lat, lng: muni.lng }]
     );
     setTowns(nextTowns);
-    setTownSearchQuery("");
     notifyChange(pref, muni, nextTowns[0]);
   };
 
@@ -147,7 +138,6 @@ export function HomeLocationSelector({
       () => [{ id: muni.id, name: muni.name, lat: muni.lat, lng: muni.lng }]
     );
     setTowns(nextTowns);
-    setTownSearchQuery("");
     notifyChange(prefecture, muni, nextTowns[0]);
   };
 
@@ -158,9 +148,10 @@ export function HomeLocationSelector({
     notifyChange(prefecture, municipality, town);
   };
 
-  const handleResolveByGemini = async () => {
+  const handleSearchAddress = async () => {
     if (!rawAddress.trim()) return;
-    setError(null);
+    setAddressError(null);
+    setAddressNotice(null);
     setIsResolvingAddress(true);
     try {
       const res = await fetch("/api/resolve-home", {
@@ -169,21 +160,23 @@ export function HomeLocationSelector({
         body: JSON.stringify({ rawAddress }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Gemini住所解析に失敗しました");
+      if (!res.ok) {
+        throw new Error(data.error ?? "住所の検索に失敗しました");
+      }
 
-      const matchedPref =
-        prefectures.find((item) => item.name === data.prefectureName) ??
-        prefectures.find((item) => data.prefectureName.includes(item.name));
+      const matchedPref = matchPrefecture(prefectures, data.prefectureName);
       if (!matchedPref) throw new Error("都道府県を特定できませんでした");
 
       const nextMunicipalities = await loadMunicipalities(matchedPref.id);
       setMunicipalities(nextMunicipalities);
-      const matchedMunicipality =
-        nextMunicipalities.find((item) => item.name === data.municipalityName) ??
-        nextMunicipalities.find((item) =>
-          data.municipalityName.includes(item.name)
-        ) ??
-        nextMunicipalities[0];
+      const matchedMunicipality = matchMunicipality(
+        nextMunicipalities,
+        data.municipalityName,
+        matchedPref.name
+      );
+      if (!matchedMunicipality) {
+        throw new Error("市区町村を特定できませんでした");
+      }
 
       const nextTowns = await loadTownsByMunicipality(
         matchedPref.name,
@@ -198,15 +191,18 @@ export function HomeLocationSelector({
       ]);
       setTowns(nextTowns);
 
-      const matchedTown =
-        nextTowns.find((item) => item.name === data.townName) ??
-        nextTowns.find((item) => item.name.includes(data.townName)) ??
-        nextTowns.find((item) => data.townName.includes(item.name)) ??
-        nextTowns[0];
-
+      const matchedTown = matchTown(nextTowns, data.townName);
       notifyChange(matchedPref, matchedMunicipality, matchedTown);
+
+      if (data.notice) {
+        setAddressNotice(data.notice);
+      } else {
+        setAddressNotice("住所を特定しました。");
+      }
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Gemini住所解析に失敗しました");
+      setAddressError(
+        e instanceof Error ? e.message : "住所の検索に失敗しました"
+      );
     } finally {
       setIsResolvingAddress(false);
     }
@@ -222,10 +218,10 @@ export function HomeLocationSelector({
         }
       : null;
 
-  if (error) {
+  if (loadError) {
     return (
       <p className="rounded-xl bg-red-50 px-4 py-3 text-base text-red-700">
-        {error}
+        {loadError}
       </p>
     );
   }
@@ -237,7 +233,7 @@ export function HomeLocationSelector({
           htmlFor="raw-address"
           className="mb-1.5 block text-sm font-medium text-slate-600"
         >
-          住所入力（Gemini補助）
+          住所入力
         </label>
         <input
           id="raw-address"
@@ -248,12 +244,18 @@ export function HomeLocationSelector({
         />
         <button
           type="button"
-          onClick={() => void handleResolveByGemini()}
+          onClick={() => void handleSearchAddress()}
           disabled={isResolvingAddress || isLoadingPrefs}
           className="mt-2 min-h-[44px] w-full rounded-xl bg-sky-600 px-4 py-2 text-base font-semibold text-white disabled:opacity-50"
         >
-          {isResolvingAddress ? "Gemini解析中…" : "Geminiで住所を解析"}
+          {isResolvingAddress ? "検索中…" : "住所を検索"}
         </button>
+        {addressError && (
+          <p className="mt-2 text-sm text-red-600">{addressError}</p>
+        )}
+        {addressNotice && !addressError && (
+          <p className="mt-2 text-sm text-amber-700">{addressNotice}</p>
+        )}
       </div>
 
       <div>
@@ -284,24 +286,6 @@ export function HomeLocationSelector({
 
       <div>
         <label
-          htmlFor="municipality-search"
-          className="mb-1.5 block text-sm font-medium text-slate-600"
-        >
-          市区町村を検索
-        </label>
-        <input
-          id="municipality-search"
-          type="search"
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          placeholder="例: 宮崎市、札幌市中央区"
-          disabled={isLoadingCities}
-          className="min-h-[48px] w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-lg text-slate-900 shadow-sm placeholder:text-slate-400 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-200"
-        />
-      </div>
-
-      <div>
-        <label
           htmlFor="municipality-select"
           className="mb-1.5 block text-sm font-medium text-slate-600"
         >
@@ -316,39 +300,19 @@ export function HomeLocationSelector({
           id="municipality-select"
           value={value.municipalityId}
           onChange={(e) => void handleMunicipalityChange(e.target.value)}
-          disabled={isLoadingCities || filteredMunicipalities.length === 0}
+          disabled={isLoadingCities || municipalities.length === 0}
           className={selectClassName}
         >
           {isLoadingCities ? (
             <option>読み込み中…</option>
-          ) : filteredMunicipalities.length === 0 ? (
-            <option>該当なし</option>
           ) : (
-            filteredMunicipalities.map((m) => (
+            municipalities.map((m) => (
               <option key={m.id} value={m.id}>
                 {m.name}
               </option>
             ))
           )}
         </select>
-      </div>
-
-      <div>
-        <label
-          htmlFor="town-search"
-          className="mb-1.5 block text-sm font-medium text-slate-600"
-        >
-          町・字を検索
-        </label>
-        <input
-          id="town-search"
-          type="search"
-          value={townSearchQuery}
-          onChange={(e) => setTownSearchQuery(e.target.value)}
-          placeholder="例: 清武町加納"
-          disabled={isLoadingTowns}
-          className="min-h-[48px] w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-lg text-slate-900 shadow-sm placeholder:text-slate-400 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-200"
-        />
       </div>
 
       <div>
@@ -367,15 +331,13 @@ export function HomeLocationSelector({
           id="town-select"
           value={value.townId}
           onChange={(e) => handleTownChange(e.target.value)}
-          disabled={isLoadingTowns || filteredTowns.length === 0}
+          disabled={isLoadingTowns || towns.length === 0}
           className={selectClassName}
         >
           {isLoadingTowns ? (
             <option>読み込み中…</option>
-          ) : filteredTowns.length === 0 ? (
-            <option>該当なし</option>
           ) : (
-            filteredTowns.map((item) => (
+            towns.map((item) => (
               <option key={item.id} value={item.id}>
                 {item.name}
               </option>

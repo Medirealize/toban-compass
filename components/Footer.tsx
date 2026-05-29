@@ -13,6 +13,9 @@ export function Footer() {
 
         {/* リンク */}
         <div className="flex flex-wrap justify-center gap-x-4 gap-y-1 text-xs text-slate-400">
+          <Link href="/howto" className="hover:text-slate-600 hover:underline">
+            使い方
+          </Link>
           <Link href="/terms" className="hover:text-slate-600 hover:underline">
             利用規約
           </Link>

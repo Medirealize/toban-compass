@@ -211,13 +211,23 @@ export default function HomePage() {
 
   return (
     <div className="min-h-screen bg-slate-50 pb-10">
-      <header className="sticky top-0 z-10 border-b border-slate-200 bg-white/95 px-4 py-4 backdrop-blur">
-        <h1 className="text-center text-xl font-bold text-slate-900">
-          休日夜間 当番コンパス
-        </h1>
-        <p className="mt-1 text-center text-sm text-slate-500">
-          お住まいエリアから最寄りの当番医・薬局へ
-        </p>
+      <header className="sticky top-0 z-10 border-b border-slate-200 bg-white/95 px-4 py-3 backdrop-blur">
+        <div className="flex items-center justify-between">
+          <div className="w-12" />
+          <div className="text-center">
+            <h1 className="text-xl font-bold text-slate-900">どこ近？</h1>
+            <p className="text-xs text-slate-500">
+              候補地を比べて、一番近いところを見つけよう
+            </p>
+          </div>
+          <a
+            href="/howto"
+            className="flex h-9 w-12 items-center justify-center rounded-xl text-slate-500 hover:bg-slate-100 text-sm font-medium"
+            aria-label="使い方"
+          >
+            使い方
+          </a>
+        </div>
       </header>
 
       <main className="mx-auto max-w-lg px-4 pt-4">

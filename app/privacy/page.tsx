@@ -2,7 +2,7 @@ import Link from "next/link";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "プライバシーポリシー | 休日夜間 当番コンパス",
+  title: "プライバシーポリシー | どこ近？",
 };
 
 export default function PrivacyPage() {
@@ -21,7 +21,7 @@ export default function PrivacyPage() {
           <section>
             <p>
               メディリアライズ（以下「当社」）は、
-              「休日夜間 当番コンパス」（以下「本アプリ」）における
+              「どこ近？」（以下「本アプリ」）における
               利用者の個人情報・データの取り扱いについて、以下の通り定めます。
             </p>
           </section>

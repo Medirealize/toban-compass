@@ -14,13 +14,13 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "休日夜間 当番コンパス",
-  description: "お住まいエリアから最寄りの当番医・当番薬局を案内",
+  title: "どこ近？",
+  description: "複数の候補地を比べて一番近い場所を見つけるレーダーコンパス",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
-    title: "当番コンパス",
+    title: "どこ近？",
   },
   icons: {
     icon: [
@@ -55,7 +55,7 @@ export default function RootLayout({
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-        <meta name="apple-mobile-web-app-title" content="当番コンパス" />
+        <meta name="apple-mobile-web-app-title" content="どこ近？" />
       </head>
       <body className="min-h-full flex flex-col font-sans">
           {children}

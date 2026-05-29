@@ -2,7 +2,7 @@ import Link from "next/link";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "利用規約 | 休日夜間 当番コンパス",
+  title: "利用規約 | どこ近？",
 };
 
 export default function TermsPage() {
@@ -21,7 +21,7 @@ export default function TermsPage() {
           <section>
             <p>
               本利用規約（以下「本規約」）は、メディリアライズ（以下「当社」）が提供する
-              「休日夜間 当番コンパス」（以下「本アプリ」）の利用条件を定めるものです。
+              「どこ近？」（以下「本アプリ」）の利用条件を定めるものです。
               本アプリをご利用いただいた時点で、本規約に同意したものとみなします。
             </p>
           </section>

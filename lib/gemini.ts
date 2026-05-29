@@ -207,6 +207,59 @@ export async function resolvePlaceWithGemini(
   return { ...raw, type: raw.type || "other" };
 }
 
+/** コピペしたテキスト一覧を施設リストに変換 */
+export async function parseTextListWithGemini(
+  text: string,
+  regionHint?: string
+): Promise<Array<{ name: string; address: string; type: string; lat: number; lng: number }>> {
+  const lines = [
+    "以下のテキストから施設・場所の一覧を抽出してください。",
+    "テキストはウェブページ・PDFなどからコピーされた施設リストです。",
+    "",
+    "【抽出ルール】",
+    "- 施設名・場所名が含まれる行を全て抽出する",
+    "- 電話番号・番号・記号のみの行は無視する",
+    "- 1施設 = 1要素。重複は統合する",
+    "",
+    "【各フィールド】",
+    "- name: 施設の正式名称",
+    `- address: 都道府県から始まる住所。不明な場合は${regionHint ? `「${regionHint}」を使って` : ""}施設名から推定する`,
+    "- type: hospital/pharmacy/visiting_nurse/gym/school/community_center/park/shelter/hotel/restaurant/station など",
+    "- lat/lng: 住所・施設名から推定した日本国内座標（0禁止・施設ごとに異なる値）",
+    "",
+    regionHint ? `優先地域: ${regionHint}` : "",
+    "",
+    "【テキスト】",
+    text,
+  ].filter((l) => l !== undefined);
+
+  const result = await requestWithModelFallback<{
+    facilities: Array<{ name: string; address: string; type: string; lat: number; lng: number }>;
+  }>(
+    lines.join("\n"),
+    {
+      type: "OBJECT",
+      required: ["facilities"],
+      properties: {
+        facilities: {
+          type: "ARRAY",
+          items: {
+            type: "OBJECT",
+            properties: {
+              name:    { type: "STRING" },
+              address: { type: "STRING" },
+              type:    { type: "STRING" },
+              lat:     { type: "NUMBER" },
+              lng:     { type: "NUMBER" },
+            },
+          },
+        },
+      },
+    }
+  );
+  return (result.facilities ?? []).map((f) => ({ ...f, type: f.type || "other" }));
+}
+
 export async function parseHomeAddressWithGemini(rawAddress: string) {
   return requestWithModelFallback<{
     prefectureName: string;

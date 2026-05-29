@@ -36,6 +36,50 @@ export function ManualFacilityAdder({
   const inputRef = useRef<HTMLInputElement>(null);
   const composingRef = useRef(false);
 
+  // テキスト一括貼り付け
+  const [bulkText, setBulkText] = useState("");
+  const [bulkOpen, setBulkOpen] = useState(false);
+  const [bulkLoading, setBulkLoading] = useState(false);
+  const [bulkError, setBulkError] = useState<string | null>(null);
+  const bulkComposingRef = useRef(false);
+
+  const handleBulkImport = useCallback(async () => {
+    const trimmed = bulkText.trim();
+    if (!trimmed) return;
+    setBulkLoading(true);
+    setBulkError(null);
+    try {
+      const res = await fetch("/api/parse-text", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: trimmed, regionHint }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "読み込みに失敗しました");
+      const imported = data.facilities as Array<{
+        name: string; address: string; type: string; lat: number; lng: number;
+      }>;
+      for (const f of imported) {
+        onAdd({
+          id: `manual-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+          name: f.name,
+          address: f.address,
+          region: "",
+          type: f.type,
+          lat: f.lat,
+          lng: f.lng,
+          hours: "要確認",
+        });
+      }
+      setBulkText("");
+      setBulkOpen(false);
+    } catch (e) {
+      setBulkError(e instanceof Error ? e.message : "読み込みに失敗しました");
+    } finally {
+      setBulkLoading(false);
+    }
+  }, [bulkText, regionHint, onAdd]);
+
   // 編集中の施設
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
@@ -164,6 +208,45 @@ export function ManualFacilityAdder({
         </button>
       </div>
       {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
+
+      {/* テキスト一括貼り付け */}
+      <div className="mt-3 border-t border-slate-100 pt-3">
+        <button
+          type="button"
+          onClick={() => { setBulkOpen((v) => !v); setBulkError(null); }}
+          className="flex w-full items-center gap-2 text-left text-sm font-semibold text-sky-700"
+        >
+          <span className="text-base">{bulkOpen ? "▲" : "▼"}</span>
+          リストをテキストで一括貼り付け
+          <span className="ml-1 text-xs font-normal text-slate-400">
+            ウェブページ・表からのコピペに対応
+          </span>
+        </button>
+
+        {bulkOpen && (
+          <div className="mt-2 space-y-2">
+            <textarea
+              value={bulkText}
+              onChange={(e) => setBulkText(e.target.value)}
+              onCompositionStart={() => { bulkComposingRef.current = true; }}
+              onCompositionEnd={() => { bulkComposingRef.current = false; }}
+              disabled={bulkLoading}
+              placeholder={"例:\n宮崎市立総合体育館\n宮崎市立南部記念体育館\n宮崎県体育館\n\n施設名・住所・電話番号が混在していても解析します"}
+              rows={6}
+              className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm disabled:opacity-50 focus:border-sky-300 focus:outline-none focus:ring-2 focus:ring-sky-200"
+            />
+            {bulkError && <p className="text-sm text-red-600">{bulkError}</p>}
+            <button
+              type="button"
+              onClick={() => void handleBulkImport()}
+              disabled={bulkLoading || !bulkText.trim()}
+              className="min-h-[44px] w-full rounded-xl bg-sky-600 text-sm font-semibold text-white disabled:opacity-40"
+            >
+              {bulkLoading ? "AI解析中…" : "一括読み込み"}
+            </button>
+          </div>
+        )}
+      </div>
 
       {/* 追加済みリスト */}
       {facilities.length > 0 && (

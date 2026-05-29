@@ -5,9 +5,10 @@ import { normalizeFacilities } from "./schedule-normalize";
 
 const MODEL_CANDIDATES = [
   process.env.GEMINI_MODEL,
+  "gemini-2.5-flash",
+  "gemini-2.5-flash-lite",
   "gemini-2.0-flash",
   "gemini-2.0-flash-001",
-  "gemini-2.0-flash-lite",
 ].filter(Boolean) as string[];
 
 interface GeminiInlineFile {

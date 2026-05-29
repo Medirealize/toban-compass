@@ -63,6 +63,7 @@ export default function HomePage() {
 
   // 現在地GPS
   const [gpsLocation, setGpsLocation] = useState<HomeLocation | null>(null);
+  const [gpsAccuracyM, setGpsAccuracyM] = useState<number | null>(null);
   const [gpsLoading, setGpsLoading] = useState(false);
   const [gpsError, setGpsError] = useState<string | null>(null);
 
@@ -84,11 +85,13 @@ export default function HomePage() {
     }
     setGpsLoading(true);
     setGpsError(null);
+    setGpsAccuracyM(null);
     navigator.geolocation.getCurrentPosition(
       (pos) => {
         setGpsLocation(
           gpsToHomeLocation(pos.coords.latitude, pos.coords.longitude)
         );
+        setGpsAccuracyM(pos.coords.accuracy);
         setGpsLoading(false);
       },
       () => {
@@ -219,7 +222,16 @@ export default function HomePage() {
           <span className="text-xl">📍</span>
           <div className="flex-1 min-w-0">
             {gpsLocation ? (
-              <p className="text-sm font-semibold text-emerald-700">現在地取得済み</p>
+              <>
+                <p className="text-sm font-semibold text-emerald-700">現在地取得済み</p>
+                {gpsAccuracyM !== null && (
+                  <p className={`text-xs ${gpsAccuracyM > 3000 ? "text-amber-600" : "text-slate-400"}`}>
+                    {gpsAccuracyM > 3000
+                      ? `⚠️ 精度が低い（±${(gpsAccuracyM / 1000).toFixed(1)}km）— MacはWiFi/IP測位のため誤差が大きい場合があります`
+                      : `精度 ±${gpsAccuracyM < 1000 ? `${Math.round(gpsAccuracyM)}m` : `${(gpsAccuracyM / 1000).toFixed(1)}km`}`}
+                  </p>
+                )}
+              </>
             ) : (
               <>
                 <p className="text-sm font-semibold text-slate-700">現在地を取得</p>

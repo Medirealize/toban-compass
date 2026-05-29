@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "休日夜間 当番コンパス",
-  description: "患者の自宅エリアから最寄りの当番医・当番薬局を案内",
+  description: "お住まいエリアから最寄りの当番医・当番薬局を案内",
 };
 
 export const viewport: Viewport = {

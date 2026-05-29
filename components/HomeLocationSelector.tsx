@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   loadMunicipalities,
   loadPrefectures,
@@ -9,7 +9,7 @@ import {
 import {
   matchMunicipality,
   matchPrefecture,
-  matchTown,
+  findTown,
 } from "@/lib/match-location";
 import { loadTownsByMunicipality, type TownOption } from "@/lib/towns";
 import type { HomeLocation, Municipality, Prefecture } from "@/lib/types";
@@ -44,6 +44,7 @@ export function HomeLocationSelector({
   const [loadError, setLoadError] = useState<string | null>(null);
   const [addressError, setAddressError] = useState<string | null>(null);
   const [addressNotice, setAddressNotice] = useState<string | null>(null);
+  const initialTownSyncedRef = useRef(false);
 
   useEffect(() => {
     loadPrefectures()
@@ -93,29 +94,54 @@ export function HomeLocationSelector({
 
   useEffect(() => {
     if (!prefecture || !municipality) return;
+    let cancelled = false;
     setIsLoadingTowns(true);
     loadTownsByMunicipality(prefecture.name, municipality.name)
       .then((nextTowns) => {
+        if (cancelled) return;
         setTowns(nextTowns);
-        const matched = nextTowns.find((item) => item.id === value.townId);
-        if (!matched && nextTowns[0]) {
-          notifyChange(prefecture, municipality, nextTowns[0]);
-        }
       })
       .catch(() => {
-        const fallback = {
-          id: municipality.id,
-          name: municipality.name,
-          lat: municipality.lat,
-          lng: municipality.lng,
-        };
-        setTowns([fallback]);
-        if (value.townId !== fallback.id) {
-          notifyChange(prefecture, municipality, fallback);
-        }
+        if (cancelled) return;
+        setTowns([
+          {
+            id: municipality.id,
+            name: municipality.name,
+            lat: municipality.lat,
+            lng: municipality.lng,
+          },
+        ]);
       })
-      .finally(() => setIsLoadingTowns(false));
-  }, [municipality, notifyChange, prefecture, value.townId]);
+      .finally(() => {
+        if (!cancelled) setIsLoadingTowns(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [prefecture?.id, municipality?.id]);
+
+  // 初回のみ、町字未選択なら先頭を起点に設定（以降の自動上書きはしない）
+  useEffect(() => {
+    if (
+      initialTownSyncedRef.current ||
+      !prefecture ||
+      !municipality ||
+      isLoadingTowns ||
+      towns.length === 0 ||
+      value.townId
+    ) {
+      return;
+    }
+    initialTownSyncedRef.current = true;
+    notifyChange(prefecture, municipality, towns[0]);
+  }, [
+    isLoadingTowns,
+    municipality,
+    notifyChange,
+    prefecture,
+    towns,
+    value.townId,
+  ]);
 
   const handlePrefectureChange = async (prefectureId: string) => {
     const pref = prefectures.find((p) => p.id === prefectureId);
@@ -191,8 +217,25 @@ export function HomeLocationSelector({
       ]);
       setTowns(nextTowns);
 
-      const matchedTown = matchTown(nextTowns, data.townName);
-      notifyChange(matchedPref, matchedMunicipality, matchedTown);
+      const matchedTown = findTown(nextTowns, data.townName);
+      const town: TownOption = matchedTown
+        ? { ...matchedTown }
+        : {
+            id:
+              typeof data.townId === "string" && data.townId
+                ? data.townId
+                : `${data.townName}::`,
+            name: data.townName,
+            lat: matchedMunicipality.lat,
+            lng: matchedMunicipality.lng,
+          };
+
+      if (typeof data.lat === "number" && typeof data.lng === "number") {
+        town.lat = data.lat;
+        town.lng = data.lng;
+      }
+
+      notifyChange(matchedPref, matchedMunicipality, town);
 
       if (data.notice) {
         setAddressNotice(data.notice);
@@ -348,7 +391,7 @@ export function HomeLocationSelector({
 
       {resolved && (
         <div className="rounded-xl bg-sky-50 px-4 py-3 ring-1 ring-sky-100">
-          <p className="text-sm text-sky-700">選択中の自宅</p>
+          <p className="text-sm text-sky-700">選択中のエリア</p>
           <p className="mt-0.5 text-lg font-bold text-sky-900">
             {formatHomeLocationLabel(resolved)}
           </p>

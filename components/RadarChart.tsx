@@ -124,7 +124,7 @@ export function RadarChart({
   return (
     <div className="w-full overflow-hidden rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
       <p className="mb-2 text-center text-sm font-medium text-slate-600">
-        中心: {fullLabel}（患者の自宅）
+        中心: {fullLabel}
       </p>
       <svg
         viewBox={`0 0 ${SIZE} ${SIZE}`}

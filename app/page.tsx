@@ -143,14 +143,14 @@ export default function HomePage() {
           休日夜間 当番コンパス
         </h1>
         <p className="mt-1 text-center text-sm text-slate-500">
-          患者の自宅から最寄りの当番医・薬局へ
+          お住まいエリアから最寄りの当番医・薬局へ
         </p>
       </header>
 
       <main className="mx-auto max-w-lg px-4 pt-4">
-        <section aria-label="患者の自宅">
+        <section aria-label="お住まいエリア">
           <h2 className="mb-2 text-base font-semibold text-slate-700">
-            患者の自宅
+            お住まいエリア
           </h2>
           <HomeLocationSelector
             value={locationSelection}

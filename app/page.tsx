@@ -134,6 +134,10 @@ export default function HomePage() {
     setManualFacilities((prev) => prev.filter((f) => f.id !== id));
   }, []);
 
+  const handleManualUpdate = useCallback((id: string, updated: Facility) => {
+    setManualFacilities((prev) => prev.map((f) => (f.id === id ? updated : f)));
+  }, []);
+
   const handleParsedRemove = useCallback((id: string) => {
     setFacilities((prev) => prev.filter((f) => f.id !== id));
   }, []);
@@ -299,6 +303,7 @@ export default function HomePage() {
                 }
                 onAdd={handleManualAdd}
                 onRemove={handleManualRemove}
+                onUpdate={handleManualUpdate}
               />
             </div>
 

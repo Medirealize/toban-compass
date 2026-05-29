@@ -145,6 +145,10 @@ export function RadarChart({ homeLocation, facilities, maxDistanceKm }: RadarCha
     if (!svg) return;
     const onWheel = (e: WheelEvent) => {
       e.preventDefault();
+      // ctrlKey = トラックパッドのピンチ or Ctrl+ホイール → ズーム
+      // それ以外の通常スクロールはページに任せる
+      if (!e.ctrlKey && !e.metaKey) return;
+      e.preventDefault();
       const rect = svg.getBoundingClientRect();
       const cur = zsRef.current;
       const vs = SIZE / cur.zoom;

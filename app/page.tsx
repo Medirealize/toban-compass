@@ -30,6 +30,23 @@ function enrichFacilities(
     .sort((a, b) => a.distanceKm - b.distanceKm);
 }
 
+function maxDist(list: FacilityWithDistance[]): number {
+  return list.length > 0 ? Math.max(...list.map((f) => f.distanceKm)) : 10;
+}
+
+/** GPS座標をHomeLocation型として扱うためのアダプタ */
+function gpsToHomeLocation(lat: number, lng: number): HomeLocation {
+  return {
+    prefectureId: "",
+    prefectureName: "",
+    municipalityId: "",
+    municipalityName: "",
+    townName: "現在地",
+    lat,
+    lng,
+  };
+}
+
 export default function HomePage() {
   const [homeLocation, setHomeLocation] = useState<HomeLocation | null>(null);
   const [locationSelection, setLocationSelection] =
@@ -42,6 +59,11 @@ export default function HomePage() {
   const [isParsing, setIsParsing] = useState(false);
   const [parseResult, setParseResult] = useState<ParseResult | null>(null);
 
+  // 現在地GPS
+  const [gpsLocation, setGpsLocation] = useState<HomeLocation | null>(null);
+  const [gpsLoading, setGpsLoading] = useState(false);
+  const [gpsError, setGpsError] = useState<string | null>(null);
+
   useEffect(() => {
     getDefaultLocationSelection().then(({ location, townId }) => {
       setHomeLocation(location);
@@ -53,24 +75,44 @@ export default function HomePage() {
     });
   }, []);
 
-  const sortedFacilities = useMemo(
+  const handleRequestGps = useCallback(() => {
+    if (!navigator.geolocation) {
+      setGpsError("このブラウザは位置情報に対応していません");
+      return;
+    }
+    setGpsLoading(true);
+    setGpsError(null);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setGpsLocation(
+          gpsToHomeLocation(pos.coords.latitude, pos.coords.longitude)
+        );
+        setGpsLoading(false);
+      },
+      () => {
+        setGpsError("位置情報を取得できませんでした。\nブラウザの許可設定を確認してください。");
+        setGpsLoading(false);
+      },
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
+  }, []);
+
+  // お住まいエリア基準
+  const homeFacilities = useMemo(
     () =>
       homeLocation
-        ? enrichFacilities(
-            facilities,
-            homeLocation.lat,
-            homeLocation.lng
-          )
+        ? enrichFacilities(facilities, homeLocation.lat, homeLocation.lng)
         : [],
     [facilities, homeLocation]
   );
 
-  const maxDistanceKm = useMemo(
+  // 現在地基準
+  const gpsFacilities = useMemo(
     () =>
-      sortedFacilities.length > 0
-        ? Math.max(...sortedFacilities.map((f) => f.distanceKm))
-        : 10,
-    [sortedFacilities]
+      gpsLocation
+        ? enrichFacilities(facilities, gpsLocation.lat, gpsLocation.lng)
+        : [],
+    [facilities, gpsLocation]
   );
 
   const handleLocationChange = useCallback(
@@ -170,22 +212,93 @@ export default function HomePage() {
               />
             </div>
 
+            {/* ── 2つのレーダー ── */}
             <section className="mt-6" aria-label="距離レーダー">
-              <h2 className="mb-2 text-base font-semibold text-slate-700">
+              <h2 className="mb-3 text-base font-semibold text-slate-700">
                 距離レーダー
               </h2>
-              <RadarChart
-                homeLocation={homeLocation}
-                facilities={sortedFacilities}
-                maxDistanceKm={maxDistanceKm}
-              />
+              <div className="grid grid-cols-2 gap-3">
+
+                {/* 左: お住まいエリア基準 */}
+                <div className="flex flex-col gap-2">
+                  <p className="text-center text-xs font-semibold text-sky-700">
+                    お住まいエリア基準
+                  </p>
+                  <RadarChart
+                    homeLocation={homeLocation}
+                    facilities={homeFacilities}
+                    maxDistanceKm={maxDist(homeFacilities)}
+                  />
+                  {homeFacilities[0] && (
+                    <p className="rounded-xl bg-sky-50 px-3 py-2 text-center text-xs text-sky-800">
+                      最寄り: <span className="font-semibold">{homeFacilities[0].name}</span>
+                      <br />
+                      {homeFacilities[0].distanceKm.toFixed(1)} km
+                    </p>
+                  )}
+                </div>
+
+                {/* 右: 現在地基準 */}
+                <div className="flex flex-col gap-2">
+                  <p className="text-center text-xs font-semibold text-emerald-700">
+                    現在地基準
+                  </p>
+                  {gpsLocation ? (
+                    <>
+                      <RadarChart
+                        homeLocation={gpsLocation}
+                        facilities={gpsFacilities}
+                        maxDistanceKm={maxDist(gpsFacilities)}
+                      />
+                      {gpsFacilities[0] && (
+                        <p className="rounded-xl bg-emerald-50 px-3 py-2 text-center text-xs text-emerald-800">
+                          最寄り: <span className="font-semibold">{gpsFacilities[0].name}</span>
+                          <br />
+                          {gpsFacilities[0].distanceKm.toFixed(1)} km
+                        </p>
+                      )}
+                      <button
+                        type="button"
+                        onClick={handleRequestGps}
+                        className="rounded-lg bg-slate-100 px-2 py-1.5 text-xs text-slate-500 active:bg-slate-200"
+                      >
+                        位置情報を再取得
+                      </button>
+                    </>
+                  ) : (
+                    <div className="flex flex-1 flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-slate-300 bg-white px-3 py-8 text-center">
+                      <p className="text-xs leading-relaxed text-slate-500">
+                        現在地から各施設の方向・距離を表示します
+                      </p>
+                      <button
+                        type="button"
+                        onClick={handleRequestGps}
+                        disabled={gpsLoading}
+                        className="min-h-[40px] w-full rounded-xl bg-emerald-600 px-3 text-sm font-semibold text-white disabled:opacity-50"
+                      >
+                        {gpsLoading ? "取得中…" : "現在地を取得"}
+                      </button>
+                      {gpsError && (
+                        <p className="whitespace-pre-line text-xs text-red-600">
+                          {gpsError}
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+              </div>
             </section>
 
+            {/* ── 距離順リスト（お住まいエリア基準） ── */}
             <section className="mt-6" aria-label="距離順リスト">
               <h2 className="mb-2 text-base font-semibold text-slate-700">
                 距離が近い順
+                <span className="ml-2 text-xs font-normal text-slate-400">
+                  お住まいエリア基準
+                </span>
               </h2>
-              <FacilityList facilities={sortedFacilities} />
+              <FacilityList facilities={homeFacilities} />
             </section>
           </>
         )}

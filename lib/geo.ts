@@ -47,12 +47,11 @@ export function formatDistanceKm(km: number): string {
 export function buildGoogleMapsDirectionsUrl(
   destLat: number,
   destLng: number,
-  originLat?: number,
-  originLng?: number
+  originAddress?: string
 ): string {
-  // Use coordinates for both endpoints — address text can silently fail resolution
-  if (originLat !== undefined && originLng !== undefined) {
-    return `https://www.google.com/maps/dir/${originLat},${originLng}/${destLat},${destLng}/`;
+  // destination = coordinates (unambiguous pin); origin = address text (human-readable)
+  if (originAddress) {
+    return `https://www.google.com/maps/dir/${encodeURIComponent(originAddress)}/${destLat},${destLng}/`;
   }
   return `https://www.google.com/maps/dir/?api=1&destination=${destLat},${destLng}`;
 }

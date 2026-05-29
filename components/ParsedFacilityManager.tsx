@@ -1,20 +1,34 @@
 "use client";
 
-import { useState } from "react";
-import type { Facility } from "@/lib/types";
+import { useMemo, useState } from "react";
+import type { Facility, HomeLocation } from "@/lib/types";
+import { haversineDistanceKm } from "@/lib/geo";
 
 interface ParsedFacilityManagerProps {
   facilities: Facility[];
+  gpsLocation: HomeLocation | null;
   onRemove: (id: string) => void;
   onClear: () => void;
 }
 
 export function ParsedFacilityManager({
   facilities,
+  gpsLocation,
   onRemove,
   onClear,
 }: ParsedFacilityManagerProps) {
   const [open, setOpen] = useState(true);
+
+  // 現在地がある場合は距離付きで近い順にソート
+  const sorted = useMemo(() => {
+    if (!gpsLocation) return facilities;
+    return [...facilities]
+      .map((f) => ({
+        ...f,
+        _dist: haversineDistanceKm(gpsLocation.lat, gpsLocation.lng, f.lat, f.lng),
+      }))
+      .sort((a, b) => a._dist - b._dist);
+  }, [facilities, gpsLocation]);
 
   if (facilities.length === 0) return null;
 
@@ -33,6 +47,11 @@ export function ParsedFacilityManager({
           <span className="rounded-full bg-sky-100 px-2 py-0.5 text-xs font-semibold text-sky-700">
             {facilities.length}件
           </span>
+          {gpsLocation && (
+            <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs text-emerald-700">
+              現在地から近い順
+            </span>
+          )}
           <span className="ml-auto text-xs text-slate-400">
             {open ? "▲ 閉じる" : "▼ 開く"}
           </span>
@@ -49,36 +68,43 @@ export function ParsedFacilityManager({
       {/* リスト */}
       {open && (
         <ul className="divide-y divide-slate-100 border-t border-slate-100">
-          {facilities.map((f) => (
-            <li
-              key={f.id}
-              className="flex items-center gap-2 px-4 py-2.5"
-            >
-              <span
-                className={`inline-flex h-5 shrink-0 items-center rounded-full px-2 text-[10px] font-semibold ${
-                  f.type === "pharmacy"
-                    ? "bg-green-100 text-green-700"
-                    : "bg-blue-100 text-blue-700"
-                }`}
-              >
-                {f.type === "pharmacy" ? "薬局" : "病院"}
-              </span>
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-medium text-slate-800">
-                  {f.name}
-                </p>
-                <p className="truncate text-xs text-slate-400">{f.address}</p>
-              </div>
-              <button
-                type="button"
-                onClick={() => onRemove(f.id)}
-                aria-label={`${f.name}を削除`}
-                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-slate-400 hover:bg-red-50 hover:text-red-500 active:bg-red-100"
-              >
-                ✕
-              </button>
-            </li>
-          ))}
+          {sorted.map((f) => {
+            const dist = gpsLocation
+              ? haversineDistanceKm(gpsLocation.lat, gpsLocation.lng, f.lat, f.lng)
+              : null;
+            return (
+              <li key={f.id} className="flex items-center gap-2 px-4 py-2.5">
+                <span
+                  className={`inline-flex h-5 shrink-0 items-center rounded-full px-2 text-[10px] font-semibold ${
+                    f.type === "pharmacy"
+                      ? "bg-green-100 text-green-700"
+                      : "bg-blue-100 text-blue-700"
+                  }`}
+                >
+                  {f.type === "pharmacy" ? "薬局" : "病院"}
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-medium text-slate-800">
+                    {f.name}
+                  </p>
+                  <p className="truncate text-xs text-slate-400">{f.address}</p>
+                </div>
+                {dist !== null && (
+                  <span className="shrink-0 text-sm font-semibold text-emerald-700">
+                    {dist.toFixed(1)} km
+                  </span>
+                )}
+                <button
+                  type="button"
+                  onClick={() => onRemove(f.id)}
+                  aria-label={`${f.name}を削除`}
+                  className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-slate-400 hover:bg-red-50 hover:text-red-500 active:bg-red-100"
+                >
+                  ✕
+                </button>
+              </li>
+            );
+          })}
         </ul>
       )}
     </div>

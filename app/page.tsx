@@ -214,6 +214,36 @@ export default function HomePage() {
       </header>
 
       <main className="mx-auto max-w-lg px-4 pt-4">
+        {/* 現在地取得（任意・先に取得しておくと施設一覧に距離が表示される） */}
+        <div className="mb-4 flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
+          <span className="text-xl">📍</span>
+          <div className="flex-1 min-w-0">
+            {gpsLocation ? (
+              <p className="text-sm font-semibold text-emerald-700">現在地取得済み</p>
+            ) : (
+              <>
+                <p className="text-sm font-semibold text-slate-700">現在地を取得</p>
+                <p className="text-xs text-slate-400">取得すると施設一覧に距離が表示されます</p>
+              </>
+            )}
+            {gpsError && (
+              <p className="mt-0.5 text-xs text-red-600">{gpsError}</p>
+            )}
+          </div>
+          <button
+            type="button"
+            onClick={handleRequestGps}
+            disabled={gpsLoading}
+            className={`shrink-0 rounded-xl px-3 py-1.5 text-sm font-semibold disabled:opacity-50 ${
+              gpsLocation
+                ? "bg-slate-100 text-slate-600"
+                : "bg-emerald-600 text-white"
+            }`}
+          >
+            {gpsLoading ? "取得中…" : gpsLocation ? "再取得" : "取得"}
+          </button>
+        </div>
+
         <section aria-label="お住まいエリア">
           <h2 className="mb-2 text-base font-semibold text-slate-700">
             お住まいエリア
@@ -240,6 +270,7 @@ export default function HomePage() {
               <div className="mt-3">
                 <ParsedFacilityManager
                   facilities={facilities}
+                  gpsLocation={gpsLocation}
                   onRemove={handleParsedRemove}
                   onClear={handleParsedClear}
                 />

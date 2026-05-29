@@ -135,13 +135,39 @@ async function requestWithModelFallback<T>(
   throw lastError ?? new Error("Gemini API failed");
 }
 
-export async function resolvePlaceWithGemini(text: string): Promise<{
+export async function resolvePlaceWithGemini(
+  text: string,
+  regionHint?: string
+): Promise<{
   name: string;
   address: string;
   type: "hospital" | "pharmacy";
   lat: number;
   lng: number;
 }> {
+  const lines = [
+    "日本の施設・場所名が入力されます。以下のルールで最も妥当な施設を特定してください。",
+    "",
+    "【漢字バリアント・誤字への対応】",
+    "- 入力の漢字が正式名称と異なる場合がある（例: 渡辺/渡邉/渡部、斎藤/齋藤/斉藤、吉/𠮷、崎/﨑）",
+    "- 読み方（ふりがな）が同じ・似た施設を優先して特定すること",
+    "- 略称・通称・誤字でも文脈から最も近い実在施設を推定する",
+    "- 入力と完全一致しなくても、最も可能性の高い候補を1件返す",
+    "",
+    "【地域の優先度】",
+    regionHint
+      ? `- 検索エリアの優先地域: ${regionHint}（この地域に実在する施設を最優先で返す）`
+      : "- 日本全国から最も可能性の高い施設を返す",
+    "",
+    "【出力ルール】",
+    "- name: 実在する可能性が最も高い正式名称",
+    "- address: 都道府県から始まる完全な住所",
+    "- type: hospital（病院・クリニック・診療所）または pharmacy（薬局）。医療以外も hospital",
+    "- lat/lng: 実在する日本国内の座標（緯度24〜46、経度122〜154）。0は絶対禁止",
+    "",
+    `入力: ${text}`,
+  ];
+
   const raw = await requestWithModelFallback<{
     name: string;
     address: string;
@@ -149,14 +175,7 @@ export async function resolvePlaceWithGemini(text: string): Promise<{
     lat: number;
     lng: number;
   }>(
-    [
-      "入力されたテキストから施設・場所の情報を抽出し、日本国内の座標を返してください。",
-      "type は hospital（病院・クリニック・診療所）または pharmacy（薬局・調剤薬局）。",
-      "医療施設でない場合も hospital として扱ってください。",
-      "address は都道府県から始まる完全な住所にしてください。",
-      "lat/lng は実在する日本国内の座標（緯度24〜46、経度122〜154）で、0は禁止。",
-      `入力: ${text}`,
-    ].join("\n"),
+    lines.join("\n"),
     {
       type: "OBJECT",
       required: ["name", "address", "type", "lat", "lng"],

@@ -5,12 +5,14 @@ import type { Facility } from "@/lib/types";
 
 interface ManualFacilityAdderProps {
   facilities: Facility[];
+  regionHint?: string;
   onAdd: (facility: Facility) => void;
   onRemove: (id: string) => void;
 }
 
 export function ManualFacilityAdder({
   facilities,
+  regionHint,
   onAdd,
   onRemove,
 }: ManualFacilityAdderProps) {
@@ -29,7 +31,7 @@ export function ManualFacilityAdder({
       const res = await fetch("/api/resolve-place", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text: trimmed }),
+        body: JSON.stringify({ text: trimmed, regionHint }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "追加に失敗しました");

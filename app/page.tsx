@@ -280,6 +280,11 @@ export default function HomePage() {
             <div className="mt-4">
               <ManualFacilityAdder
                 facilities={manualFacilities}
+                regionHint={
+                  homeLocation
+                    ? `${homeLocation.prefectureName}${homeLocation.municipalityName}`
+                    : undefined
+                }
                 onAdd={handleManualAdd}
                 onRemove={handleManualRemove}
               />

@@ -6,6 +6,7 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json().catch(() => ({}));
     const text = typeof body.text === "string" ? body.text.trim() : "";
+    const regionHint = typeof body.regionHint === "string" ? body.regionHint.trim() : undefined;
     if (!text) {
       return NextResponse.json(
         { error: "施設名または住所を入力してください" },
@@ -18,7 +19,7 @@ export async function POST(request: NextRequest) {
         { status: 500 }
       );
     }
-    const result = await resolvePlaceWithGemini(text);
+    const result = await resolvePlaceWithGemini(text, regionHint);
     return NextResponse.json(result);
   } catch (error) {
     const message = toUserFriendlyParseError(error);

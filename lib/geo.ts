@@ -47,12 +47,13 @@ export function formatDistanceKm(km: number): string {
 export function buildGoogleMapsDirectionsUrl(
   name: string,
   address: string,
-  originAddress?: string
+  originLat?: number,
+  originLng?: number
 ): string {
   const destination = encodeURIComponent(`${name} ${address}`);
-  if (originAddress) {
-    const origin = encodeURIComponent(originAddress);
-    return `https://www.google.com/maps/dir/${origin}/${destination}/`;
+  if (originLat !== undefined && originLng !== undefined) {
+    // Path format with precise coordinates — most reliable across web and native app
+    return `https://www.google.com/maps/dir/${originLat},${originLng}/${destination}/`;
   }
   return `https://www.google.com/maps/dir/?api=1&destination=${destination}`;
 }

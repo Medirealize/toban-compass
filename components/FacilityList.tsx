@@ -1,7 +1,6 @@
 "use client";
 
 import type { FacilityWithDistance, HomeLocation } from "@/lib/types";
-import { formatHomeLocationLabel } from "@/lib/types";
 import { buildGoogleMapsDirectionsUrl, formatDistanceKm } from "@/lib/geo";
 
 interface FacilityListProps {
@@ -62,7 +61,8 @@ export function FacilityList({ facilities, homeLocation }: FacilityListProps) {
                 href={buildGoogleMapsDirectionsUrl(
                   f.name,
                   f.address,
-                  homeLocation ? formatHomeLocationLabel(homeLocation) : undefined
+                  homeLocation?.lat,
+                  homeLocation?.lng
                 )}
                 target="_blank"
                 rel="noopener noreferrer"

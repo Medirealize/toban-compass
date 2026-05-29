@@ -16,6 +16,7 @@ import { FacilityList } from "@/components/FacilityList";
 import { ScheduleUploader } from "@/components/ScheduleUploader";
 import type { ParseResult } from "@/components/ScheduleUploader";
 import { ManualFacilityAdder } from "@/components/ManualFacilityAdder";
+import { ParsedFacilityManager } from "@/components/ParsedFacilityManager";
 
 function enrichFacilities(
   facilities: Facility[],
@@ -131,6 +132,14 @@ export default function HomePage() {
     setManualFacilities((prev) => prev.filter((f) => f.id !== id));
   }, []);
 
+  const handleParsedRemove = useCallback((id: string) => {
+    setFacilities((prev) => prev.filter((f) => f.id !== id));
+  }, []);
+
+  const handleParsedClear = useCallback(() => {
+    setFacilities([]);
+  }, []);
+
   const handleLocationChange = useCallback(
     (selection: HomeLocationSelection, location: HomeLocation) => {
       setLocationSelection(selection);
@@ -227,6 +236,16 @@ export default function HomePage() {
                 parseResult={parseResult}
               />
             </div>
+
+            {facilities.length > 0 && (
+              <div className="mt-3">
+                <ParsedFacilityManager
+                  facilities={facilities}
+                  onRemove={handleParsedRemove}
+                  onClear={handleParsedClear}
+                />
+              </div>
+            )}
 
             <div className="mt-4">
               <ManualFacilityAdder

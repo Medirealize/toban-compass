@@ -7,7 +7,6 @@ import {
   getDefaultLocationSelection,
 } from "@/lib/locations";
 import { bearingDeg, haversineDistanceKm } from "@/lib/geo";
-import { SAMPLE_FACILITIES } from "@/lib/mock-data";
 import type { Facility, FacilityWithDistance, HomeLocation } from "@/lib/types";
 import { HomeLocationSelector } from "@/components/HomeLocationSelector";
 import type { HomeLocationSelection } from "@/components/HomeLocationSelector";
@@ -57,7 +56,7 @@ export default function HomePage() {
       municipalityId: DEFAULT_MUNICIPALITY_ID,
       townId: "",
     });
-  const [facilities, setFacilities] = useState<Facility[]>(SAMPLE_FACILITIES);
+  const [facilities, setFacilities] = useState<Facility[]>([]);
   const [manualFacilities, setManualFacilities] = useState<Facility[]>([]);
   const [isParsing, setIsParsing] = useState(false);
   const [parseResult, setParseResult] = useState<ParseResult | null>(null);

@@ -1,64 +1,173 @@
-import Image from "next/image";
+"use client";
 
-export default function Home() {
+import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  DEFAULT_MUNICIPALITY_ID,
+  DEFAULT_PREFECTURE_ID,
+  getDefaultHomeLocation,
+} from "@/lib/locations";
+import { bearingDeg, haversineDistanceKm } from "@/lib/geo";
+import { SAMPLE_FACILITIES } from "@/lib/mock-data";
+import type { Facility, FacilityWithDistance, HomeLocation } from "@/lib/types";
+import { HomeLocationSelector } from "@/components/HomeLocationSelector";
+import type { HomeLocationSelection } from "@/components/HomeLocationSelector";
+import { RadarChart } from "@/components/RadarChart";
+import { FacilityList } from "@/components/FacilityList";
+import { ScheduleUploader } from "@/components/ScheduleUploader";
+
+function enrichFacilities(
+  facilities: Facility[],
+  lat: number,
+  lng: number
+): FacilityWithDistance[] {
+  return facilities
+    .map((f) => ({
+      ...f,
+      distanceKm: haversineDistanceKm(lat, lng, f.lat, f.lng),
+      bearingDeg: bearingDeg(lat, lng, f.lat, f.lng),
+    }))
+    .sort((a, b) => a.distanceKm - b.distanceKm);
+}
+
+export default function HomePage() {
+  const [homeLocation, setHomeLocation] = useState<HomeLocation | null>(null);
+  const [locationSelection, setLocationSelection] =
+    useState<HomeLocationSelection>({
+      prefectureId: DEFAULT_PREFECTURE_ID,
+      municipalityId: DEFAULT_MUNICIPALITY_ID,
+      townId: DEFAULT_MUNICIPALITY_ID,
+    });
+  const [facilities, setFacilities] = useState<Facility[]>(SAMPLE_FACILITIES);
+  const [isParsing, setIsParsing] = useState(false);
+  const [parseMessage, setParseMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    getDefaultHomeLocation().then((loc) => {
+      setHomeLocation(loc);
+      setLocationSelection({
+        prefectureId: loc.prefectureId,
+        municipalityId: loc.municipalityId,
+        townId: loc.municipalityId,
+      });
+    });
+  }, []);
+
+  const sortedFacilities = useMemo(
+    () =>
+      homeLocation
+        ? enrichFacilities(
+            facilities,
+            homeLocation.lat,
+            homeLocation.lng
+          )
+        : [],
+    [facilities, homeLocation]
+  );
+
+  const maxDistanceKm = useMemo(
+    () =>
+      sortedFacilities.length > 0
+        ? Math.max(...sortedFacilities.map((f) => f.distanceKm))
+        : 10,
+    [sortedFacilities]
+  );
+
+  const handleLocationChange = useCallback(
+    (selection: HomeLocationSelection, location: HomeLocation) => {
+      setLocationSelection(selection);
+      setHomeLocation(location);
+    },
+    []
+  );
+
+  const handleParseFile = useCallback(async (file: File) => {
+    setIsParsing(true);
+    setParseMessage(null);
+
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const res = await fetch("/api/parse", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error ?? "解析に失敗しました");
+      }
+
+      const data = await res.json();
+      setFacilities(data.facilities);
+      const sourceLabel = file.name.startsWith("pasted-")
+        ? "貼り付け画像"
+        : `「${file.name}」`;
+      setParseMessage(
+        `${sourceLabel}から ${data.facilities.length} 件を読み込みました`
+      );
+    } catch (e) {
+      setParseMessage(
+        e instanceof Error ? e.message : "解析中にエラーが発生しました"
+      );
+    } finally {
+      setIsParsing(false);
+    }
+  }, []);
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
+    <div className="min-h-screen bg-slate-50 pb-10">
+      <header className="sticky top-0 z-10 border-b border-slate-200 bg-white/95 px-4 py-4 backdrop-blur">
+        <h1 className="text-center text-xl font-bold text-slate-900">
+          休日夜間 当番コンパス
+        </h1>
+        <p className="mt-1 text-center text-sm text-slate-500">
+          患者の自宅から最寄りの当番医・薬局へ
+        </p>
+      </header>
+
+      <main className="mx-auto max-w-lg px-4 pt-4">
+        <section aria-label="患者の自宅">
+          <h2 className="mb-2 text-base font-semibold text-slate-700">
+            患者の自宅
+          </h2>
+          <HomeLocationSelector
+            value={locationSelection}
+            onChange={handleLocationChange}
+          />
+        </section>
+
+        {!homeLocation ? (
+          <p className="mt-8 text-center text-slate-500">読み込み中…</p>
+        ) : (
+          <>
+            <div className="mt-6">
+              <ScheduleUploader
+                onFile={handleParseFile}
+                isParsing={isParsing}
+                parseMessage={parseMessage}
+              />
+            </div>
+
+            <section className="mt-6" aria-label="距離レーダー">
+              <h2 className="mb-2 text-base font-semibold text-slate-700">
+                距離レーダー
+              </h2>
+              <RadarChart
+                homeLocation={homeLocation}
+                facilities={sortedFacilities}
+                maxDistanceKm={maxDistanceKm}
+              />
+            </section>
+
+            <section className="mt-6" aria-label="距離順リスト">
+              <h2 className="mb-2 text-base font-semibold text-slate-700">
+                距離が近い順
+              </h2>
+              <FacilityList facilities={sortedFacilities} />
+            </section>
+          </>
+        )}
       </main>
     </div>
   );

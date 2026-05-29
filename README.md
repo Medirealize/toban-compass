@@ -1,36 +1,41 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 休日夜間 当番コンパス
 
-## Getting Started
+患者の自宅（都道府県・市区町村・町字）から、休日夜間の当番医・当番薬局を距離順に案内する Web アプリです。
 
-First, run the development server:
+## 機能
+
+- 全国の市区町村 + 町・字レベルの自宅選択
+- 当番表（スクショ / PDF / クリップボード貼り付け）の AI 解析
+- 地図タイルなしの距離レーダー表示
+- Google マップへのルート連携
+
+## セットアップ
 
 ```bash
+npm install
+cp .env.example .env.local
+# .env.local に GEMINI_API_KEY を設定
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## 環境変数
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+| 変数 | 説明 |
+|------|------|
+| `GEMINI_API_KEY` | Gemini API キー（住所解析・当番表解析）。未設定時はモック動作 |
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## 市区町村データの再生成
 
-## Learn More
+```bash
+curl -fsSL https://code4fukui.github.io/localgovjp/localgovjp.json \
+  -o scripts/source-localgovjp.json
+npm run build:locations
+```
 
-To learn more about Next.js, take a look at the following resources:
+データソース: [code4fukui/localgovjp](https://github.com/code4fukui/localgovjp)
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Vercel デプロイ
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+1. [GitHub リポジトリ](https://github.com/Medirealize/toban-compass) を Vercel にインポート
+2. Environment Variables に `GEMINI_API_KEY` を設定
+3. Deploy

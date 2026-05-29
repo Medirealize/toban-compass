@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import type { HomeLocation, FacilityWithDistance } from "@/lib/types";
 import { formatHomeLocationLabel, formatHomeLocationShort } from "@/lib/types";
 import { polarToCartesian } from "@/lib/geo";
@@ -9,6 +9,7 @@ const SIZE = 320;
 const CENTER = SIZE / 2;
 const MAX_RADIUS = 130;
 const RING_STEPS = [0.25, 0.5, 0.75, 1];
+const TAP_RADIUS = 22; // SVG units — max distance to activate a dot
 
 interface RadarChartProps {
   homeLocation: HomeLocation;
@@ -28,13 +29,10 @@ function TooltipLabel({
   distanceKm: number;
 }) {
   const label = `${name}（${distanceKm.toFixed(1)} km）`;
-  // Japanese chars ≈10px, ASCII ≈6px at font-size 10; add 16px padding
   const estWidth = Math.min(name.length * 10 + 80, 210);
   const height = 24;
-  // Show above dot when in lower half, below when in upper half
   const above = cy > CENTER - 20;
-  const boxY = above ? cy - height - 8 : cy + 12;
-  // Clamp so box stays within SVG
+  const boxY = above ? cy - height - 10 : cy + 12;
   const boxX = Math.max(4, Math.min(SIZE - estWidth - 4, cx - estWidth / 2));
 
   return (
@@ -48,7 +46,6 @@ function TooltipLabel({
         fill="#1e293b"
         opacity={0.92}
       />
-      {/* Arrow pointing to dot */}
       <polygon
         points={
           above
@@ -72,6 +69,20 @@ function TooltipLabel({
   );
 }
 
+function facilityPos(
+  f: FacilityWithDistance,
+  safeMax: number
+): { x: number; y: number } {
+  const normalized = Math.min(f.distanceKm / safeMax, 1);
+  const { x, y } = polarToCartesian(
+    CENTER,
+    CENTER,
+    normalized * MAX_RADIUS,
+    f.bearingDeg
+  );
+  return { x: Math.round(x * 100) / 100, y: Math.round(y * 100) / 100 };
+}
+
 export function RadarChart({
   homeLocation,
   facilities,
@@ -84,6 +95,32 @@ export function RadarChart({
 
   const activeFacility = facilities.find((f) => f.id === activeId) ?? null;
 
+  // Find the closest dot to the tap/click point — avoids wrong-dot selection
+  const handleSvgClick = useCallback(
+    (e: React.MouseEvent<SVGSVGElement>) => {
+      const rect = e.currentTarget.getBoundingClientRect();
+      const scaleX = SIZE / rect.width;
+      const scaleY = SIZE / rect.height;
+      const px = (e.clientX - rect.left) * scaleX;
+      const py = (e.clientY - rect.top) * scaleY;
+
+      let closestId: string | null = null;
+      let minDist = TAP_RADIUS;
+
+      for (const f of facilities) {
+        const { x, y } = facilityPos(f, safeMax);
+        const dist = Math.hypot(px - x, py - y);
+        if (dist < minDist) {
+          minDist = dist;
+          closestId = f.id;
+        }
+      }
+
+      setActiveId((prev) => (prev === closestId ? null : closestId));
+    },
+    [facilities, safeMax]
+  );
+
   return (
     <div className="w-full overflow-hidden rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
       <p className="mb-2 text-center text-sm font-medium text-slate-600">
@@ -91,9 +128,10 @@ export function RadarChart({
       </p>
       <svg
         viewBox={`0 0 ${SIZE} ${SIZE}`}
-        className="mx-auto h-auto w-full max-w-[360px]"
+        className="mx-auto h-auto w-full max-w-[360px] cursor-default"
         role="img"
         aria-label={`${fullLabel}を中心とした当番施設レーダー`}
+        onClick={handleSvgClick}
         onMouseLeave={() => setActiveId(null)}
       >
         {/* Distance rings */}
@@ -148,22 +186,17 @@ export function RadarChart({
           {shortLabel}
         </text>
 
-        {/* Facility dots */}
+        {/* Facility dots — hover activates tooltip on desktop */}
         {facilities.map((f) => {
-          const normalized = Math.min(f.distanceKm / safeMax, 1);
-          const radius = normalized * MAX_RADIUS;
-          const { x, y } = polarToCartesian(CENTER, CENTER, radius, f.bearingDeg);
+          const { x: cx, y: cy } = facilityPos(f, safeMax);
           const color = f.type === "hospital" ? "#2563eb" : "#16a34a";
-          const cx = Math.round(x * 100) / 100;
-          const cy = Math.round(y * 100) / 100;
           const isActive = activeId === f.id;
 
           return (
             <g
               key={f.id}
-              style={{ cursor: "pointer" }}
               onMouseEnter={() => setActiveId(f.id)}
-              onClick={() => setActiveId((prev) => (prev === f.id ? null : f.id))}
+              style={{ cursor: "pointer" }}
             >
               <line
                 x1={CENTER}
@@ -182,31 +215,22 @@ export function RadarChart({
                 stroke="#fff"
                 strokeWidth={2}
               />
-              {/* Larger invisible hit area for easy tapping */}
-              <circle cx={cx} cy={cy} r={18} fill="transparent" />
             </g>
           );
         })}
 
-        {/* Tooltip rendered last so it appears above all dots */}
-        {activeFacility &&
-          (() => {
-            const normalized = Math.min(activeFacility.distanceKm / safeMax, 1);
-            const { x, y } = polarToCartesian(
-              CENTER,
-              CENTER,
-              normalized * MAX_RADIUS,
-              activeFacility.bearingDeg
-            );
-            return (
-              <TooltipLabel
-                cx={Math.round(x * 100) / 100}
-                cy={Math.round(y * 100) / 100}
-                name={activeFacility.name}
-                distanceKm={activeFacility.distanceKm}
-              />
-            );
-          })()}
+        {/* Tooltip rendered last — always on top of all dots */}
+        {activeFacility && (() => {
+          const { x: cx, y: cy } = facilityPos(activeFacility, safeMax);
+          return (
+            <TooltipLabel
+              cx={cx}
+              cy={cy}
+              name={activeFacility.name}
+              distanceKm={activeFacility.distanceKm}
+            />
+          );
+        })()}
       </svg>
 
       <div className="mt-2 flex justify-center gap-4 text-xs text-slate-600">

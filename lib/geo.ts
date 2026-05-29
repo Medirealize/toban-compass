@@ -45,17 +45,16 @@ export function formatDistanceKm(km: number): string {
 }
 
 export function buildGoogleMapsDirectionsUrl(
-  name: string,
-  address: string,
+  destLat: number,
+  destLng: number,
   originLat?: number,
   originLng?: number
 ): string {
-  const destination = encodeURIComponent(`${name} ${address}`);
+  // Use coordinates for both endpoints — address text can silently fail resolution
   if (originLat !== undefined && originLng !== undefined) {
-    // Path format with precise coordinates — most reliable across web and native app
-    return `https://www.google.com/maps/dir/${originLat},${originLng}/${destination}/`;
+    return `https://www.google.com/maps/dir/${originLat},${originLng}/${destLat},${destLng}/`;
   }
-  return `https://www.google.com/maps/dir/?api=1&destination=${destination}`;
+  return `https://www.google.com/maps/dir/?api=1&destination=${destLat},${destLng}`;
 }
 
 /** レーダー上の座標（SVG中心原点、北=上） */

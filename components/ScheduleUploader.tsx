@@ -72,6 +72,20 @@ function ParseResultBanner({ result }: { result: ParseResult }) {
   );
 }
 
+/** clipboard.read() でClipboardItem から画像を取り出す */
+async function readImageFromClipboardAPI(): Promise<File | null> {
+  if (!navigator.clipboard?.read) return null;
+  const items = await navigator.clipboard.read();
+  for (const item of items) {
+    const imageType = item.types.find((t) => t.startsWith("image/"));
+    if (!imageType) continue;
+    const blob = await item.getType(imageType);
+    const ext = imageType.split("/")[1]?.replace("jpeg", "jpg") ?? "png";
+    return new File([blob], `pasted-${Date.now()}.${ext}`, { type: imageType });
+  }
+  return null;
+}
+
 export function ScheduleUploader({
   onFile,
   isParsing,
@@ -79,22 +93,24 @@ export function ScheduleUploader({
 }: ScheduleUploaderProps) {
   const [isDragging, setIsDragging] = useState(false);
   const [isPasteReady, setIsPasteReady] = useState(false);
+  const [pasteHint, setPasteHint] = useState<string | null>(null);
   const dropZoneRef = useRef<HTMLDivElement>(null);
 
   const processFile = useCallback(
     (file: File) => {
+      setIsPasteReady(false);
+      setPasteHint(null);
       void onFile(file);
     },
     [onFile]
   );
 
+  // デスクトップ: document レベルの paste イベントで ⌘V に対応
   const handlePaste = useCallback(
     (event: ClipboardEvent) => {
       if (isParsing || isTypingTarget(event.target)) return;
-
       const file = getImageFileFromClipboard(event);
       if (!file) return;
-
       event.preventDefault();
       processFile(file);
     },
@@ -125,10 +141,40 @@ export function ScheduleUploader({
     [processFile]
   );
 
-  const focusDropZone = () => {
-    dropZoneRef.current?.focus();
-    setIsPasteReady(true);
-  };
+  /**
+   * 「貼り付け準備」ボタン
+   * iOS Safari: ユーザージェスチャー内で clipboard.read() を呼ぶことで
+   *   「〇〇からペースト」ダイアログを発動できる
+   * デスクトップ: dropZone にフォーカスして ⌘V を待つ従来の動作
+   */
+  const handlePasteButton = useCallback(async () => {
+    setPasteHint(null);
+
+    // Clipboard API が使える場合（iOS 16+, Android Chrome, デスクトップ）
+    if (typeof navigator !== "undefined" && typeof navigator.clipboard?.read === "function") {
+      try {
+        const file = await readImageFromClipboardAPI();
+        if (file) {
+          processFile(file);
+        } else {
+          // クリップボードに画像なし
+          setPasteHint(
+            "クリップボードに画像がありません。先に写真を「コピー」してから押してください。"
+          );
+          setIsPasteReady(true);
+          dropZoneRef.current?.focus();
+        }
+      } catch {
+        // 権限拒否 or 未対応 → フォーカス方式にフォールバック
+        setIsPasteReady(true);
+        dropZoneRef.current?.focus();
+      }
+    } else {
+      // Clipboard API 未対応ブラウザ（古いiOS など）→ フォーカスで ⌘V を待つ
+      setIsPasteReady(true);
+      dropZoneRef.current?.focus();
+    }
+  }, [processFile]);
 
   return (
     <section aria-label="当番表の取り込み">
@@ -178,7 +224,7 @@ export function ScheduleUploader({
             <div className="mt-4 flex w-full flex-col gap-2 sm:flex-row sm:justify-center">
               <button
                 type="button"
-                onClick={focusDropZone}
+                onClick={() => void handlePasteButton()}
                 className="min-h-[44px] rounded-xl bg-sky-600 px-5 text-base font-semibold text-white active:bg-sky-700"
               >
                 貼り付け準備
@@ -207,9 +253,14 @@ export function ScheduleUploader({
         )}
       </div>
 
+      {pasteHint && (
+        <p className="mt-2 text-sm text-amber-700">{pasteHint}</p>
+      )}
+
       <p className="mt-2 text-xs leading-relaxed text-slate-500">
-        iPhone/iPad: 写真を切り取ったあと「コピー」→「貼り付け準備」を押してから貼り付け。
-        Mac: 画面キャプチャ（⌘⇧4 など）後、そのまま ⌘V で取り込みできます。
+        iPhone/iPad: スクショ後「コピー」→「貼り付け準備」を押すと自動で取り込みます。
+        初回は「〇〇からペースト」の許可ダイアログが出ます。
+        Mac: ⌘⇧4 キャプチャ後、そのまま ⌘V で取り込みできます。
       </p>
 
       {parseResult && <ParseResultBanner result={parseResult} />}

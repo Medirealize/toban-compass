@@ -14,6 +14,7 @@ import type { HomeLocationSelection } from "@/components/HomeLocationSelector";
 import { RadarChart } from "@/components/RadarChart";
 import { FacilityList } from "@/components/FacilityList";
 import { ScheduleUploader } from "@/components/ScheduleUploader";
+import type { ParseResult } from "@/components/ScheduleUploader";
 
 function enrichFacilities(
   facilities: Facility[],
@@ -39,7 +40,7 @@ export default function HomePage() {
     });
   const [facilities, setFacilities] = useState<Facility[]>(SAMPLE_FACILITIES);
   const [isParsing, setIsParsing] = useState(false);
-  const [parseMessage, setParseMessage] = useState<string | null>(null);
+  const [parseResult, setParseResult] = useState<ParseResult | null>(null);
 
   useEffect(() => {
     getDefaultHomeLocation().then((loc) => {
@@ -82,7 +83,7 @@ export default function HomePage() {
 
   const handleParseFile = useCallback(async (file: File) => {
     setIsParsing(true);
-    setParseMessage(null);
+    setParseResult(null);
 
     try {
       const formData = new FormData();
@@ -99,25 +100,37 @@ export default function HomePage() {
       }
 
       const data = await res.json();
-      if (data.facilities?.length) {
-        setFacilities(data.facilities);
-      }
       const sourceLabel = file.name.startsWith("pasted-")
         ? "貼り付け画像"
-        : `「${file.name}」`;
-      if (data.notice) {
-        setParseMessage(`${sourceLabel}: ${data.notice}`);
-      } else if (data.facilities?.length) {
-        setParseMessage(
-          `${sourceLabel}から ${data.facilities.length} 件を読み込みました`
-        );
+        : file.name;
+
+      if (data.facilities?.length) {
+        setFacilities(data.facilities);
+        if (data.notice) {
+          setParseResult({
+            status: "warning",
+            title: "読み込み完了（注意あり）",
+            detail: data.notice,
+            count: data.facilities.length,
+          });
+        } else {
+          setParseResult({
+            status: "success",
+            title: "読み込み成功",
+            detail: `${sourceLabel}から ${data.facilities.length} 件の当番施設を読み込みました`,
+            count: data.facilities.length,
+          });
+        }
       } else {
         throw new Error("施設データが空です");
       }
     } catch (e) {
-      setParseMessage(
-        e instanceof Error ? e.message : "解析中にエラーが発生しました"
-      );
+      setParseResult({
+        status: "error",
+        title: "読み込み失敗",
+        detail:
+          e instanceof Error ? e.message : "解析中にエラーが発生しました",
+      });
     } finally {
       setIsParsing(false);
     }
@@ -153,7 +166,7 @@ export default function HomePage() {
               <ScheduleUploader
                 onFile={handleParseFile}
                 isParsing={isParsing}
-                parseMessage={parseMessage}
+                parseResult={parseResult}
               />
             </div>
 

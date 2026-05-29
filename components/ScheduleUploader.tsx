@@ -9,13 +9,73 @@ import {
 interface ScheduleUploaderProps {
   onFile: (file: File) => void | Promise<void>;
   isParsing: boolean;
-  parseMessage: string | null;
+  parseResult: ParseResult | null;
+}
+
+export type ParseResultStatus = "success" | "warning" | "error";
+
+export interface ParseResult {
+  status: ParseResultStatus;
+  title: string;
+  detail?: string;
+  count?: number;
+}
+
+function ParseResultBanner({ result }: { result: ParseResult }) {
+  const styles = {
+    success: {
+      box: "border-green-300 bg-green-50 ring-green-100",
+      icon: "bg-green-600 text-white",
+      title: "text-green-900",
+      detail: "text-green-800",
+    },
+    warning: {
+      box: "border-amber-300 bg-amber-50 ring-amber-100",
+      icon: "bg-amber-500 text-white",
+      title: "text-amber-900",
+      detail: "text-amber-800",
+    },
+    error: {
+      box: "border-red-300 bg-red-50 ring-red-100",
+      icon: "bg-red-600 text-white",
+      title: "text-red-900",
+      detail: "text-red-800",
+    },
+  }[result.status];
+
+  const icon = result.status === "success" ? "✓" : result.status === "warning" ? "!" : "×";
+
+  return (
+    <div
+      role="status"
+      aria-live="polite"
+      className={`mt-3 flex items-start gap-3 rounded-2xl border px-4 py-4 ring-2 ${styles.box}`}
+    >
+      <span
+        className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-xl font-bold ${styles.icon}`}
+        aria-hidden
+      >
+        {icon}
+      </span>
+      <div className="min-w-0 flex-1">
+        <p className={`text-lg font-bold ${styles.title}`}>{result.title}</p>
+        {result.detail && (
+          <p className={`mt-1 text-base ${styles.detail}`}>{result.detail}</p>
+        )}
+        {typeof result.count === "number" && result.status === "success" && (
+          <p className={`mt-1 text-sm font-medium ${styles.detail}`}>
+            レーダーとリストを更新しました
+          </p>
+        )}
+      </div>
+    </div>
+  );
 }
 
 export function ScheduleUploader({
   onFile,
   isParsing,
-  parseMessage,
+  parseResult,
 }: ScheduleUploaderProps) {
   const [isDragging, setIsDragging] = useState(false);
   const [isPasteReady, setIsPasteReady] = useState(false);
@@ -152,24 +212,7 @@ export function ScheduleUploader({
         Mac: 画面キャプチャ（⌘⇧4 など）後、そのまま ⌘V で取り込みできます。
       </p>
 
-      {parseMessage && (
-        <p
-          className={`mt-2 text-sm ${
-            parseMessage.includes("失敗") ||
-            parseMessage.includes("エラー") ||
-            parseMessage.includes("上限") ||
-            parseMessage.includes("拒否") ||
-            parseMessage.includes("未設定")
-              ? "text-red-600"
-              : parseMessage.includes("サンプル") ||
-                  parseMessage.includes("代替")
-                ? "text-amber-700"
-                : "text-green-700"
-          }`}
-        >
-          {parseMessage}
-        </p>
-      )}
+      {parseResult && <ParseResultBanner result={parseResult} />}
     </section>
   );
 }

@@ -282,7 +282,7 @@ export function HomeLocationSelector({
           id="raw-address"
           value={rawAddress}
           onChange={(e) => setRawAddress(e.target.value)}
-          placeholder="例: 宮崎県宮崎市清武町加納"
+          placeholder="例: 東京都新宿区、大阪府大阪市北区、名古屋市中区"
           className="min-h-[48px] w-full rounded-xl border border-slate-200 px-3 py-2 text-base"
         />
         <button
@@ -318,11 +318,14 @@ export function HomeLocationSelector({
           {isLoadingPrefs ? (
             <option>読み込み中…</option>
           ) : (
-            prefectures.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.name}
-              </option>
-            ))
+            <>
+              <option value="">都道府県を選択</option>
+              {prefectures.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name}
+                </option>
+              ))}
+            </>
           )}
         </select>
       </div>
@@ -349,11 +352,14 @@ export function HomeLocationSelector({
           {isLoadingCities ? (
             <option>読み込み中…</option>
           ) : (
-            municipalities.map((m) => (
-              <option key={m.id} value={m.id}>
-                {m.name}
-              </option>
-            ))
+            <>
+              {municipalities.length > 0 && <option value="">市区町村を選択</option>}
+              {municipalities.map((m) => (
+                <option key={m.id} value={m.id}>
+                  {m.name}
+                </option>
+              ))}
+            </>
           )}
         </select>
       </div>

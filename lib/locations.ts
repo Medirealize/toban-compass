@@ -3,9 +3,9 @@ import { loadTownsByMunicipality } from "./towns";
 
 const DATA_BASE = "/data/locations";
 
-/** デフォルト: 宮崎県宮崎市 */
-export const DEFAULT_PREFECTURE_ID = "45";
-export const DEFAULT_MUNICIPALITY_ID = "452017";
+/** デフォルト未選択 */
+export const DEFAULT_PREFECTURE_ID = "";
+export const DEFAULT_MUNICIPALITY_ID = "";
 
 let prefecturesCache: Prefecture[] | null = null;
 const municipalitiesCache = new Map<string, Municipality[]>();

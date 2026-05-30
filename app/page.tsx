@@ -67,16 +67,8 @@ export default function HomePage() {
   const [gpsLoading, setGpsLoading] = useState(false);
   const [gpsError, setGpsError] = useState<string | null>(null);
 
-  useEffect(() => {
-    getDefaultLocationSelection().then(({ location, townId }) => {
-      setHomeLocation(location);
-      setLocationSelection({
-        prefectureId: location.prefectureId,
-        municipalityId: location.municipalityId,
-        townId,
-      });
-    });
-  }, []);
+  // デフォルト選択なし — ユーザーが都道府県から選択する
+  useEffect(() => {}, []);
 
   const handleRequestGps = useCallback(() => {
     if (!navigator.geolocation) {
@@ -291,7 +283,9 @@ export default function HomePage() {
         </section>
 
         {!homeLocation ? (
-          <p className="mt-8 text-center text-slate-500">読み込み中…</p>
+          <p className="mt-6 rounded-2xl border border-dashed border-slate-300 bg-white px-4 py-8 text-center text-sm text-slate-400">
+            上の「お住まいエリア」で都道府県・市区町村を選択してください
+          </p>
         ) : (
           <>
             <div className="mt-6">

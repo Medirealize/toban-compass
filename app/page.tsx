@@ -221,6 +221,14 @@ export default function HomePage() {
             <p className="text-xs text-slate-500">
               近い場所を、距離レーダーで比べよう
             </p>
+            <a
+              href="https://medirealize.jp/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-0.5 inline-block text-[10px] font-medium tracking-wide text-slate-400 hover:text-sky-600"
+            >
+              by Medirealize
+            </a>
           </div>
           <a
             href="/howto"

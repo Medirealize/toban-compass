@@ -86,6 +86,14 @@ export default function HowtoPage() {
         <p className="mt-0.5 text-sm text-slate-500">
           どこ近？ — 候補地を比べて、一番近いところを見つけよう
         </p>
+        <a
+          href="https://medirealize.jp/"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="mt-0.5 inline-block text-xs font-medium text-slate-400 hover:text-sky-600"
+        >
+          Produced by Medirealize
+        </a>
       </header>
 
       <main className="mx-auto max-w-lg px-4 py-6 space-y-8">

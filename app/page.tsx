@@ -16,6 +16,7 @@ import { ScheduleUploader } from "@/components/ScheduleUploader";
 import type { ParseResult } from "@/components/ScheduleUploader";
 import { ManualFacilityAdder } from "@/components/ManualFacilityAdder";
 import { ParsedFacilityManager } from "@/components/ParsedFacilityManager";
+import { SpecialtySearch } from "@/components/SpecialtySearch";
 
 function enrichFacilities(
   facilities: Facility[],
@@ -120,6 +121,10 @@ export default function HomePage() {
 
   const handleManualAdd = useCallback((facility: Facility) => {
     setManualFacilities((prev) => [...prev, facility]);
+  }, []);
+
+  const handleManualAddBulk = useCallback((newFacilities: Facility[]) => {
+    setManualFacilities((prev) => [...prev, ...newFacilities]);
   }, []);
 
   const handleManualRemove = useCallback((id: string) => {
@@ -319,6 +324,20 @@ export default function HomePage() {
                 onAdd={handleManualAdd}
                 onRemove={handleManualRemove}
                 onUpdate={handleManualUpdate}
+              />
+            </div>
+
+            {/* 診療科検索 */}
+            <div className="mt-4">
+              <SpecialtySearch
+                regionHint={
+                  gpsLocation
+                    ? "現在地周辺"
+                    : homeLocation
+                      ? `${homeLocation.prefectureName}${homeLocation.municipalityName}`
+                      : ""
+                }
+                onAdd={handleManualAddBulk}
               />
             </div>
 

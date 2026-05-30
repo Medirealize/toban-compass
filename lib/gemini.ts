@@ -207,6 +207,50 @@ export async function resolvePlaceWithGemini(
   return { ...raw, type: raw.type || "other" };
 }
 
+/** 診療科で近隣施設を複数検索 */
+export async function searchFacilitiesBySpecialty(
+  specialty: string,
+  regionHint: string
+): Promise<Array<{ name: string; address: string; type: string; lat: number; lng: number }>> {
+  const lines = [
+    `「${specialty}」を診療する医療機関を「${regionHint}」の周辺から複数提示してください。`,
+    "",
+    "【ルール】",
+    "- 実在する可能性が高い施設を3〜5件返す",
+    "- 名称・都道府県から始まる住所・緯度経度を含める",
+    "- type は hospital（診療所・クリニック含む）または pharmacy",
+    "- 施設ごとに異なる座標を返す（市区町村中心点の流用禁止）",
+    "- 座標は日本国内（緯度24〜46、経度122〜154）、0禁止",
+    `優先地域: ${regionHint}`,
+  ];
+
+  const result = await requestWithModelFallback<{
+    facilities: Array<{ name: string; address: string; type: string; lat: number; lng: number }>;
+  }>(
+    lines.join("\n"),
+    {
+      type: "OBJECT",
+      required: ["facilities"],
+      properties: {
+        facilities: {
+          type: "ARRAY",
+          items: {
+            type: "OBJECT",
+            properties: {
+              name:    { type: "STRING" },
+              address: { type: "STRING" },
+              type:    { type: "STRING" },
+              lat:     { type: "NUMBER" },
+              lng:     { type: "NUMBER" },
+            },
+          },
+        },
+      },
+    }
+  );
+  return (result.facilities ?? []).map((f) => ({ ...f, type: f.type || "hospital" }));
+}
+
 /** コピペしたテキスト一覧を施設リストに変換 */
 export async function parseTextListWithGemini(
   text: string,

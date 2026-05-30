@@ -30,9 +30,36 @@ export function Footer() {
           </a>
         </div>
 
+        {/* 関連サイト */}
+        <div className="border-t border-slate-100 pt-3 text-center">
+          <p className="mb-1 text-[10px] uppercase tracking-widest text-slate-300">
+            Related
+          </p>
+          <a
+            href="https://medirealize.jp/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="group inline-flex items-center gap-1.5 text-xs text-slate-400 hover:text-sky-600"
+          >
+            <span className="font-semibold group-hover:underline">Medirealize</span>
+            <span className="text-slate-300">—</span>
+            <span className="text-slate-400 group-hover:text-sky-500">
+              届かなかった声を、医療の形に変える。
+            </span>
+          </a>
+        </div>
+
         {/* コピーライト */}
         <p className="text-center text-xs text-slate-400">
-          © {new Date().getFullYear()} メディリアライズ
+          © {new Date().getFullYear()}{" "}
+          <a
+            href="https://medirealize.jp/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="hover:text-slate-600 hover:underline"
+          >
+            メディリアライズ
+          </a>
         </p>
       </div>
     </footer>

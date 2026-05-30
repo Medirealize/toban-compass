@@ -80,12 +80,40 @@ export default function HomePage() {
     setGpsError(null);
     setGpsAccuracyM(null);
     navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        setGpsLocation(
-          gpsToHomeLocation(pos.coords.latitude, pos.coords.longitude)
-        );
-        setGpsAccuracyM(pos.coords.accuracy);
+      async (pos) => {
+        const { latitude: lat, longitude: lng, accuracy } = pos.coords;
+        setGpsLocation(gpsToHomeLocation(lat, lng));
+        setGpsAccuracyM(accuracy);
         setGpsLoading(false);
+
+        // 逆ジオコーディングでお住まいエリアを自動選択
+        try {
+          const res = await fetch(`/api/reverse-geocode?lat=${lat}&lng=${lng}`);
+          if (res.ok) {
+            const data = await res.json() as {
+              prefectureId: string;
+              prefectureName: string;
+              municipalityId: string;
+              municipalityName: string;
+            };
+            setLocationSelection({
+              prefectureId: data.prefectureId,
+              municipalityId: data.municipalityId,
+              townId: "",
+            });
+            setHomeLocation({
+              prefectureId:   data.prefectureId,
+              prefectureName: data.prefectureName,
+              municipalityId:   data.municipalityId,
+              municipalityName: data.municipalityName,
+              townName: "",
+              lat,
+              lng,
+            });
+          }
+        } catch {
+          // 逆ジオコーディング失敗は無視（手動選択で対応可）
+        }
       },
       () => {
         setGpsError("位置情報を取得できませんでした。\nブラウザの許可設定を確認してください。");

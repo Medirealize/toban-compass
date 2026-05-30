@@ -73,6 +73,40 @@ async function getAllMunicipalities(): Promise<MunicipalityEntry[]> {
   return allMunicipalitiesLoading;
 }
 
+/** GPS座標から最寄りの市区町村を逆引き */
+export async function reverseGeocode(lat: number, lng: number): Promise<{
+  prefectureId: string;
+  prefectureName: string;
+  municipalityId: string;
+  municipalityName: string;
+} | null> {
+  const prefectures = await loadPrefecturesFromDisk();
+  let bestPrefId = "";
+  let bestPrefName = "";
+  let bestMuniId = "";
+  let bestMuniName = "";
+  let bestDist = Infinity;
+
+  for (const pref of prefectures) {
+    const municipalities = await loadMunicipalitiesFromDisk(pref.id);
+    for (const muni of municipalities) {
+      // 緯度経度の差分二乗和で近似距離を比較（速度優先）
+      const d = (lat - muni.lat) ** 2 + (lng - muni.lng) ** 2;
+      if (d < bestDist) {
+        bestDist = d;
+        bestPrefId = pref.id;
+        bestPrefName = pref.name;
+        bestMuniId = muni.id;
+        bestMuniName = muni.name;
+      }
+    }
+  }
+
+  return bestPrefId
+    ? { prefectureId: bestPrefId, prefectureName: bestPrefName, municipalityId: bestMuniId, municipalityName: bestMuniName }
+    : null;
+}
+
 /** 都道府県名なしでも市区町村名から座標を引く */
 export async function geocodeByMunicipalityName(
   text: string

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   DEFAULT_MUNICIPALITY_ID,
   DEFAULT_PREFECTURE_ID,
@@ -62,6 +62,10 @@ export default function HomePage() {
   const [isParsing, setIsParsing] = useState(false);
   const [parseResult, setParseResult] = useState<ParseResult | null>(null);
 
+  // GPS取得時にお住まいエリアへ座標を一度だけ優先注入するref
+  // HomeLocationSelectorの自動町字選択が町字中心点で上書きするのを防ぐ
+  const gpsCoordsOverrideRef = useRef<{ lat: number; lng: number } | null>(null);
+
   // 現在地GPS
   const [gpsLocation, setGpsLocation] = useState<HomeLocation | null>(null);
   const [gpsAccuracyM, setGpsAccuracyM] = useState<number | null>(null);
@@ -96,6 +100,8 @@ export default function HomePage() {
               municipalityId: string;
               municipalityName: string;
             };
+            // refにGPS座標を保存 → handleLocationChangeが一度だけ上書きを防ぐ
+            gpsCoordsOverrideRef.current = { lat, lng };
             setLocationSelection({
               prefectureId: data.prefectureId,
               municipalityId: data.municipalityId,
@@ -174,7 +180,15 @@ export default function HomePage() {
   const handleLocationChange = useCallback(
     (selection: HomeLocationSelection, location: HomeLocation) => {
       setLocationSelection(selection);
-      setHomeLocation(location);
+      const override = gpsCoordsOverrideRef.current;
+      if (override) {
+        // GPS取得直後の自動町字選択による座標上書きを防ぎ、GPS座標を維持する
+        // refは一度使ったら解放 → 以降の手動変更は正常に反映される
+        gpsCoordsOverrideRef.current = null;
+        setHomeLocation({ ...location, lat: override.lat, lng: override.lng });
+      } else {
+        setHomeLocation(location);
+      }
     },
     []
   );

@@ -4,8 +4,8 @@ import { useCallback, useRef, useState } from "react";
 import type { Facility } from "@/lib/types";
 
 const COMMON_SPECIALTIES = [
-  "内科", "外科", "整形外科", "皮膚科", "眼科",
-  "耳鼻咽喉科", "小児科", "産婦人科", "泌尿器科",
+  "内科", "外科", "整形外科", "形成外科", "皮膚科",
+  "眼科", "耳鼻咽喉科", "小児科", "産婦人科", "泌尿器科",
   "歯科・口腔外科", "精神科・心療内科", "循環器科",
   "消化器科", "脳神経外科", "放射線科", "リハビリ科",
 ];
@@ -68,9 +68,6 @@ export function SpecialtySearch({ regionHint, onAdd }: SpecialtySearchProps) {
     <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
       <div className="mb-3">
         <h3 className="text-sm font-semibold text-slate-700">近くの診療科を探す</h3>
-        <p className="mt-0.5 text-xs text-slate-400">
-          対応外の診療科を受診した患者さんへの案内など
-        </p>
       </div>
 
       {/* 診療科クイック選択 */}

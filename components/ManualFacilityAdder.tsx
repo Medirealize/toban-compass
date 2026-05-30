@@ -208,7 +208,7 @@ export function ManualFacilityAdder({
           onKeyDown={handleKeyDown}
           onCompositionStart={() => { composingRef.current = true; }}
           onCompositionEnd={() => { composingRef.current = false; }}
-          placeholder="例: 大江整形外科病院、清武のドラッグストア…"
+          placeholder="例: 駅前の内科クリニック、〇〇調剤薬局…"
           disabled={loading}
           className="min-h-[44px] flex-1 rounded-xl border border-slate-200 px-3 text-base disabled:opacity-50"
         />
@@ -245,7 +245,7 @@ export function ManualFacilityAdder({
               onCompositionStart={() => { bulkComposingRef.current = true; }}
               onCompositionEnd={() => { bulkComposingRef.current = false; }}
               disabled={bulkLoading}
-              placeholder={"例:\n宮崎市立総合体育館\n宮崎市立南部記念体育館\n宮崎県体育館\n\n施設名・住所・電話番号が混在していても解析します"}
+              placeholder={"例:\n市立中央体育館\n区民スポーツセンター\n総合武道館\n\n施設名・住所・電話番号が混在していても解析します"}
               rows={6}
               className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm disabled:opacity-50 focus:border-sky-300 focus:outline-none focus:ring-2 focus:ring-sky-200"
             />
@@ -298,7 +298,7 @@ export function ManualFacilityAdder({
                       onCompositionStart={() => { editComposingRef.current = true; }}
                       onCompositionEnd={() => { editComposingRef.current = false; }}
                       disabled={editLoading}
-                      placeholder="例: 宮崎県宮崎市清武町加納"
+                      placeholder="例: 東京都新宿区西新宿1-1-1"
                       className="min-h-[40px] w-full rounded-lg border border-slate-200 bg-white px-3 text-sm focus:border-sky-300 focus:outline-none focus:ring-2 focus:ring-sky-200 disabled:opacity-50"
                     />
                   </div>
